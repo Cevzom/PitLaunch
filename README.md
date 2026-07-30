@@ -11,7 +11,7 @@ use your computer, then puts the whole machine into that state on demand.
 
 [![version](https://img.shields.io/badge/version-0.9.4--beta-2EA88A?style=flat-square)](https://github.com/Cevzom/PitLaunch/releases)
 [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white)](#install)
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](#build-it-yourself)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)
 [![updates](https://img.shields.io/badge/updates-delta%20~0.2%20MB-4C8DD9?style=flat-square)](#updates)
 [![admin](https://img.shields.io/badge/admin%20rights-not%20required-2EA88A?style=flat-square)](#install)
 
@@ -83,18 +83,6 @@ PitLaunch.exe --exit
 ```
 
 Only one copy runs; later launches hand their command to the running one.
-
-## Build it yourself
-
-Requires the .NET 8 SDK.
-
-```powershell
-.\build.ps1              # portable single-file exe + zip
-.\build-installer.ps1    # installer and update packages
-```
-
-`build-installer.ps1` also writes the delta package for updating from the previous version.
-See **[RELEASING.md](RELEASING.md)** for publishing releases.
 
 ## Documentation
 
