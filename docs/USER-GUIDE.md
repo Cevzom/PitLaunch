@@ -1,4 +1,4 @@
-# PitLaunch Beta 0.9.2 - עברית
+﻿# PitLaunch Beta 0.9.4 - עברית
 
 PitLaunch היא אפליקציית Windows קלה למחשב שמשמש גם כשולחן עבודה רגיל וגם כסימולטור מרוצים. מגדירים פעם אחת אילו מסכים והתקני שמע שייכים לכל מצב, ולאחר מכן עוברים בין המצבים בלחיצה אחת.
 
@@ -76,7 +76,7 @@ PitLaunch.exe --exit
 
 ---
 
-# PitLaunch Beta 0.9.2 - English
+# PitLaunch Beta 0.9.4 - English
 
 PitLaunch is a lightweight Windows profile switcher for a PC shared between a desk and a sim rig. Choose the screens and sound devices for each setup once, then restore the whole PC with one click.
 

@@ -1,21 +1,44 @@
-PITLAUNCH BETA 0.9.1 - עברית
+PITLAUNCH BETA 0.9.4 - עברית
 ===========================
 
 תודה שאתם בודקים את PitLaunch.
 
 התקנה
-1. חלצו את כל תוכן ה-ZIP לתיקייה קבועה.
-2. הפעילו את PitLaunch.exe באופן רגיל. אין צורך בהרשאות מנהל מערכת.
-3. Windows SmartScreen עשוי להציג אזהרה מכיוון שגרסת הבטא עדיין אינה חתומה דיגיטלית.
-4. צרו מצב Desk ומצב Sim racing מהציוד ש-PitLaunch מזהה.
+1. הפעילו את PitLaunch-Setup.exe בלחיצה כפולה.
+2. ההתקנה מתבצעת בשקט תוך כמה שניות, ואז PitLaunch נפתחת מעצמה.
+   אין חלון אשף התקנה ואין מה ללחוץ - זה תקין.
+3. אין צורך בהרשאות מנהל מערכת.
+4. Windows SmartScreen עשוי להציג אזהרה מכיוון שגרסת הבטא עדיין אינה חתומה
+   דיגיטלית. בחרו "מידע נוסף" ואז "הפעל בכל זאת".
+5. נוצרים קיצורי דרך בשולחן העבודה ובתפריט התחלה. הסרה מתבצעת דרך
+   "הוספה או הסרה של תוכניות" ב-Windows.
+
+שימוש ראשון
+1. לחצו על Create setup ובחרו Desk או Sim racing.
+2. בחרו את המסכים, המסך הראשי, ואת התקני השמע של אותו מצב.
+3. לחצו Create and switch.
+4. חזרו על התהליך עבור המצב השני.
+5. מעבר בין מצבים דרך כפתור Switch או דרך התפריט באזור ההתראות.
+
+עדכונים
+- PitLaunch בודקת עדכונים ברקע ומציגה סימון Update available בסרגל הצד.
+- העדכון מוריד רק את מה שהשתנה, בדרך כלל פחות ממגה-בייט אחד.
+- אפשר גם לבדוק ידנית: Settings > Updates > Check for updates.
+- הפרופילים נשמרים מחוץ לתיקיית ההתקנה, ולכן עדכון או הסרה לא מוחקים אותם.
+
+זיהוי משחקים
+- בתוך מצב שמור: לשונית Automation, כפתור Choose game file, ובחרו את קובץ
+  ה-exe של המשחק.
+- כאשר המשחק נפתח PitLaunch עוברת אוטומטית לאותו מצב, וכשהוא נסגר היא חוזרת.
 
 הפעלה עם WINDOWS
 - Start with Windows מוסיף שתי דרכי הפעלה רגילות ואינו דורש הרשאות מנהל.
 - אם Windows עדיין מדלג על ההפעלה, לחצו על כפתור המגן Reliable startup.
-- אפשרות הגיבוי מבקשת אישור מנהל פעם אחת בלבד; PitLaunch עצמה ממשיכה לפעול בהרשאות רגילות.
+- אפשרות הגיבוי מבקשת אישור מנהל פעם אחת בלבד; PitLaunch עצמה ממשיכה לפעול
+  בהרשאות רגילות.
 
 בטיחות
-- PitLaunch מבקשת אישור לפני החלפת מצב כברירת מחדל.
+- PitLaunch מבקשת אישור לפני החלפת מצב ידנית כברירת מחדל.
 - Restore displays מפעיל את כל המסכים ש-Windows מזהה כרגע.
 - קיצור חירום: Ctrl+Alt+Shift+F12
 - הקיצור פועל כאשר PitLaunch פתוחה, גם כשהיא מוסתרת באזור ההתראות.
@@ -29,20 +52,44 @@ PITLAUNCH BETA 0.9.1 - עברית
 הפרופילים וההגדרות נשמרים כאן:
 %APPDATA%\PitLaunch\profiles.json
 
-כפתור הסגירה מעביר את PitLaunch לאזור ההתראות. לפני החלפה או מחיקה של
-PitLaunch.exe, לחצו לחיצה ימנית על סמל PitLaunch ובחרו Exit.
+כפתור הסגירה מעביר את PitLaunch לאזור ההתראות. ליציאה מלאה לחצו לחיצה ימנית
+על סמל PitLaunch באזור ההתראות ובחרו Exit.
 
 
-PITLAUNCH BETA 0.9.1 - ENGLISH
+PITLAUNCH BETA 0.9.4 - ENGLISH
 ==============================
 
 Thank you for testing PitLaunch.
 
 INSTALL
-1. Extract this entire ZIP to a permanent folder.
-2. Run PitLaunch.exe normally. Administrator access is not required.
-3. Windows SmartScreen may warn because this beta is not code-signed.
-4. Create a Desk setup and a Sim racing setup from the devices PitLaunch finds.
+1. Double-click PitLaunch-Setup.exe.
+2. It installs quietly in a few seconds and then opens PitLaunch by itself.
+   There is no setup wizard and nothing to click through - that is expected.
+3. Administrator access is not required.
+4. Windows SmartScreen may warn because this beta is not code-signed.
+   Choose "More info" then "Run anyway".
+5. Desktop and Start Menu shortcuts are created. Uninstall from
+   Add or Remove Programs like any other app.
+
+FIRST RUN
+1. Click Create setup and choose Desk or Sim racing.
+2. Pick the monitors, the main screen, and the sound devices for that setup.
+3. Click Create and switch.
+4. Repeat for the other setup.
+5. Switch between them with the Switch button or the tray menu.
+
+UPDATES
+- PitLaunch checks in the background and shows an Update available marker
+  in the sidebar.
+- Updating downloads only what changed, usually well under 1 MB.
+- You can also check manually: Settings > Updates > Check for updates.
+- Profiles live outside the install folder, so updating or uninstalling
+  never removes your saved setups.
+
+GAME DETECTION
+- Inside a saved setup: the Automation tab, Choose game file, then pick the
+  game's exe.
+- Launching that game switches to the setup automatically; quitting switches back.
 
 WINDOWS STARTUP
 - Start with Windows adds two normal startup paths and needs no administrator access.
@@ -50,7 +97,7 @@ WINDOWS STARTUP
 - The fallback asks for approval once; PitLaunch itself continues at normal permission level.
 
 SAFETY
-- PitLaunch asks for confirmation before changing setups by default.
+- PitLaunch asks for confirmation before a manual setup switch by default.
 - Restore displays enables every monitor Windows currently detects.
 - Emergency shortcut: Ctrl+Alt+Shift+F12
 - The shortcut works while PitLaunch is running, including from the tray.
@@ -64,5 +111,5 @@ Send the steps that caused the problem and this file:
 The app stores profiles and settings here:
 %APPDATA%\PitLaunch\profiles.json
 
-The close button sends PitLaunch to the tray. Right-click the tray icon and
-choose Exit before replacing or deleting PitLaunch.exe.
+The close button sends PitLaunch to the tray. To exit fully, right-click the
+PitLaunch tray icon and choose Exit.
