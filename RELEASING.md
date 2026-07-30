@@ -77,6 +77,20 @@ output folder).
 Profiles live in `%APPDATA%\PitLaunch\profiles.json`, outside the install folder, so
 updating and uninstalling never touch a user's setups.
 
+## Seeing how many people run it
+
+```powershell
+.\tools\release-stats.ps1
+```
+
+Reads the public download counts on your releases. The useful one is **update downloads**:
+only an installed copy that is actually running fetches a delta, so the delta count of your
+newest release is a close read on how many live installs there were when it shipped. Fresh
+installs appear as Setup.exe downloads, portable users as zip downloads.
+
+It measures copies in the wild, not how often anyone opens the app, and it counts mirrors and
+bots too. Nothing is sent from anyone's machine to produce these numbers.
+
 ## Verified
 
 Built 0.9.1, installed it, built 0.9.2, and updated through the app's own UI: the update
