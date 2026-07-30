@@ -184,6 +184,40 @@
             </Setter>
         </Style>
 
+        <!-- Quiet "an update is waiting" affordance for the bottom of the sidebar. -->
+        <Style x:Key="UpdateBannerButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+            <Setter Property="Height" Value="Auto" />
+            <Setter Property="Padding" Value="11,9" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Background" Value="{StaticResource InfoSoftBrush}" />
+            <Setter Property="BorderBrush" Value="#35527B" />
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                CornerRadius="7"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#1D3555" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource InfoBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.8" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource InfoBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="TextInput" TargetType="TextBox">
             <Setter Property="Height" Value="40" />
             <Setter Property="Padding" Value="0" />
@@ -446,6 +480,24 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="2">
+                    <Button x:Name="UpdateBanner" Style="{StaticResource UpdateBannerButton}" Visibility="Collapsed" Opacity="0"
+                            Click="UpdateBanner_Click" AutomationProperties.Name="Update available"
+                            ToolTip="A new version is ready. Click to review and install it.">
+                        <Button.RenderTransform><TranslateTransform x:Name="UpdateBannerSlide" Y="6" /></Button.RenderTransform>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Grid Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,9,0">
+                                <Ellipse x:Name="UpdateBannerHalo" Width="18" Height="18" Fill="{StaticResource InfoBrush}" Opacity="0.28" RenderTransformOrigin="0.5,0.5">
+                                    <Ellipse.RenderTransform><ScaleTransform x:Name="UpdateBannerPulse" ScaleX="1" ScaleY="1" /></Ellipse.RenderTransform>
+                                </Ellipse>
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource InfoBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Grid>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Update available" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                <TextBlock x:Name="UpdateBannerVersion" FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </Button>
                     <Button Style="{StaticResource SecondaryButton}" Click="RestoreDisplays_Click" Margin="0,0,0,10" HorizontalContentAlignment="Left" ToolTip="Enable all connected monitors (Ctrl+Alt+Shift+F12)" AutomationProperties.Name="Restore all displays">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="14" Width="25" VerticalAlignment="Center" />
@@ -713,9 +765,16 @@
                                     <TextBlock Text="Game detection" Style="{StaticResource SectionTitle}" />
                                     <TextBlock Text="Activate this setup when a saved process starts." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
                                 </StackPanel>
-                                <Button Style="{StaticResource SecondaryButton}" HorizontalAlignment="Right" Click="AddGameProcess_Click" AutomationProperties.Name="Add process">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Add process" /></StackPanel>
-                                </Button>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource SecondaryButton}" Click="BrowseGameApplication_Click" Margin="0,0,8,0" AutomationProperties.Name="Choose game file"
+                                            ToolTip="Pick a game or application on disk. PitLaunch watches for it and switches to this setup when it starts.">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8E5;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Choose game file" /></StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource SecondaryButton}" Click="AddGameProcess_Click" AutomationProperties.Name="Add running app"
+                                            ToolTip="Pick from the apps running right now, or type a process name.">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Add running app" /></StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </Grid>
                             <StackPanel x:Name="GamesPanel" Margin="0,0,0,22" />
                             <Button Style="{StaticResource PrimaryButton}" Content="Save automation" HorizontalAlignment="Right" Click="SaveAutomation_Click" Margin="0,0,0,8" />
@@ -817,6 +876,25 @@
                                         </Border>
                                     </Grid>
                                 </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Updates" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <Border Style="{StaticResource SectionPanel}" Padding="20,16" Margin="0,0,0,24">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,20,0">
+                                        <TextBlock x:Name="UpdateVersionText" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Button x:Name="CheckUpdateButton" Style="{StaticResource SecondaryButton}" Content="Check for updates" Click="CheckUpdate_Click" Margin="0,0,8,0" />
+                                        <Button x:Name="InstallUpdateButton" Style="{StaticResource PrimaryButton}" Content="Install and restart" Click="InstallUpdate_Click" Visibility="Collapsed" />
+                                    </StackPanel>
+                                </Grid>
+                                <ProgressBar x:Name="UpdateProgress" Height="4" Margin="0,14,0,0" Minimum="0" Maximum="100" Visibility="Collapsed"
+                                             Background="{StaticResource ChromeBrush}" Foreground="{StaticResource AccentBrush}" BorderThickness="0" />
                             </StackPanel>
                         </Border>
 

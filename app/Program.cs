@@ -1,3 +1,5 @@
+using Velopack;
+
 namespace PitLaunch;
 
 internal static class Program
@@ -5,6 +7,17 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Must run before any other startup work: on an installed copy this handles the
+        // install/update/uninstall hooks and exits for them. It is a no-op for the portable zip.
+        try
+        {
+            VelopackApp.Build().Run();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Velopack startup hook failed: " + ex.Message);
+        }
+
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

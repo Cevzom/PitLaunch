@@ -5,7 +5,12 @@ $Workspace = Split-Path -Parent (Split-Path -Parent $Root)
 $Project = Join-Path $Root "PitLaunch.csproj"
 $Output = Join-Path $Workspace "outputs\PitLaunch-Beta"
 $Staging = Join-Path $Root "artifacts\publish"
-$Zip = Join-Path $Workspace "outputs\PitLaunch-Beta-0.9.1.zip"
+# Read the version from the project so the zip name can never go stale against the build.
+$ProjectVersion = ([xml](Get-Content $Project)).Project.PropertyGroup |
+    Where-Object { $_.Version } | Select-Object -First 1 -ExpandProperty Version
+if (!$ProjectVersion) { throw "Could not read <Version> from PitLaunch.csproj" }
+$ShortVersion = ($ProjectVersion -split '-')[0]
+$Zip = Join-Path $Workspace "outputs\PitLaunch-Beta-$ShortVersion.zip"
 $LocalDotNet = Join-Path $Workspace ".tools\dotnet\dotnet.exe"
 
 function Assert-ChildPath([string]$Path, [string]$Parent) {

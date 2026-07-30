@@ -56,8 +56,9 @@ internal sealed class GameDetectionService : IDisposable
                     Guid? restore = _restoreProfileId;
                     _trackedProfileId = null;
                     _restoreProfileId = null;
-                    if (restore.HasValue && document.Profiles.Any(profile => profile.Id == restore.Value))
+                    if (restore.HasValue && document.Profiles.FirstOrDefault(profile => profile.Id == restore.Value) is Profile previous)
                     {
+                        AppLog.Info($"Game detection: {tracked?.Name ?? "tracked"} game closed, returning to {previous.Name}.");
                         ActivationRequested?.Invoke(restore.Value, ActivationSource.GameExited);
                     }
                 }
@@ -68,13 +69,18 @@ internal sealed class GameDetectionService : IDisposable
             foreach (Profile profile in document.Profiles)
             {
                 if (profile.GameProcesses.Count == 0) continue;
-                bool detected = profile.GameProcesses.Select(NormalizeProcessName).Any(running.Contains);
-                if (!detected) continue;
+                string? match = profile.GameProcesses
+                    .Select(NormalizeProcessName)
+                    .FirstOrDefault(running.Contains);
+                if (match is null) continue;
 
+                Guid? previous = document.Runtime.ActiveProfileId;
                 _trackedProfileId = profile.Id;
-                _restoreProfileId = document.Runtime.ActiveProfileId;
-                if (document.Runtime.ActiveProfileId != profile.Id)
+                // Only come back to the previous setup if the game actually changed it.
+                _restoreProfileId = previous == profile.Id ? null : previous;
+                if (previous != profile.Id)
                 {
+                    AppLog.Info($"Game detection: {match} started, switching to {profile.Name}.");
                     ActivationRequested?.Invoke(profile.Id, ActivationSource.GameDetected);
                 }
                 break;

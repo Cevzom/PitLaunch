@@ -4,10 +4,15 @@
 !.gitignore
 !PitLaunch.csproj
 !build.ps1
+!build-installer.ps1
 !README.md
+!RELEASING.md
 !START-HERE.txt
 !PRODUCT.md
 !DESIGN.md
+
+!docs/
+!docs/**
 
 !app/
 !app/**

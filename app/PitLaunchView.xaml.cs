@@ -36,6 +36,8 @@ public partial class PitLaunchView : Controls.UserControl
     private readonly HashSet<string> _setupSelectedDisplays = new(StringComparer.OrdinalIgnoreCase);
     private string? _setupPrimaryDisplayPath;
     private SetupGuideIdentity? _setupGuideIdentity;
+    private readonly UpdateService _updates = new();
+    private Velopack.UpdateInfo? _pendingUpdate;
 
     internal PitLaunchView(ProfileCoordinator coordinator, MainForm owner)
     {
@@ -49,6 +51,7 @@ public partial class PitLaunchView : Controls.UserControl
             PlayWindowReveal();
             Focus();
             Input.Keyboard.Focus(this);
+            _ = CheckForUpdatesInBackgroundAsync();
         };
 
         _coordinator.ProfilesChanged += () => RunOnUi(RefreshAll);
@@ -619,11 +622,18 @@ public partial class PitLaunchView : Controls.UserControl
         if (ReferenceEquals(e.OriginalSource, SetupGuideLayer)) CompleteSetupGuide(null);
     }
 
+    // A switch the user did not start from inside the window must never raise a modal dialog:
+    // a game-detected switch would pop PitLaunch over a fullscreen game, where the prompt is
+    // unreachable and the switch silently never happens. Hotkey and command line presses are
+    // already a deliberate act, so a second confirmation only defeats them.
+    private static bool RequiresConfirmation(ActivationSource source) =>
+        source is ActivationSource.User or ActivationSource.Tray;
+
     internal async Task ActivateProfileAsync(Guid profileId, ActivationSource source, bool bypassConfirm = false)
     {
         Profile? target = _coordinator.Document.Profiles.FirstOrDefault(profile => profile.Id == profileId);
         if (target is null) return;
-        if (_coordinator.Document.Settings.ConfirmBeforeSwitch && !bypassConfirm)
+        if (_coordinator.Document.Settings.ConfirmBeforeSwitch && !bypassConfirm && RequiresConfirmation(source))
         {
             if (_dialogMode != DialogMode.None)
             {
@@ -2222,6 +2232,8 @@ public partial class PitLaunchView : Controls.UserControl
     private void Settings_Click(object sender, Wpf.RoutedEventArgs e)
     {
         RefreshSettings();
+        // Only on entering the page: a routine refresh would discard an update the user just found.
+        RefreshUpdateSection();
         Navigate(AppPage.Settings);
     }
 
@@ -2302,6 +2314,32 @@ public partial class PitLaunchView : Controls.UserControl
         if (GamesPanel.Children[^1] is Controls.Border { Tag: GameEditorState state }) state.Process.Focus();
     }
 
+    private void BrowseGameApplication_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        using Forms.OpenFileDialog dialog = new()
+        {
+            Title = "Choose the game or application to watch for",
+            Filter = "Applications (*.exe)|*.exe|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(_owner) != Forms.DialogResult.OK) return;
+
+        string process = GameDetectionService.NormalizeProcessName(dialog.FileName);
+        if (string.IsNullOrWhiteSpace(process)) return;
+        if (GamesPanel.Children.OfType<Controls.Border>()
+            .Select(row => row.Tag as GameEditorState)
+            .Any(state => state is not null &&
+                          string.Equals(state.Process.Text.Trim(), process, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowToast("Already watched", $"{process} is already in this setup's list.", "WarningBrush");
+            return;
+        }
+
+        AddGameEditor(process);
+        ShowToast("Game added", $"Save automation to switch to this setup when {process} starts.", "AccentBrush");
+    }
+
     private void SaveAutomation_Click(object sender, Wpf.RoutedEventArgs e)
     {
         Profile? profile = SelectedProfile();
@@ -2342,6 +2380,7 @@ public partial class PitLaunchView : Controls.UserControl
             profile.Apps = apps;
             profile.GameProcesses = gameProcesses;
             _coordinator.SaveProfile(profile);
+            if (TryArmGameDetection(profile)) return;
             ShowToast("Automation saved", profile.Name, "AccentBrush");
         }
         catch (Exception ex)
@@ -2351,6 +2390,35 @@ public partial class PitLaunchView : Controls.UserControl
             profile.GameProcesses = previousGameProcesses;
             PopulateProfile();
             ShowError(ex.Message);
+        }
+    }
+
+    // Adding a game to a setup is only meaningful with the master detection switch on, so turn it
+    // on rather than saving a rule that silently never fires. Returns true when it reported itself.
+    private bool TryArmGameDetection(Profile profile)
+    {
+        if (profile.GameProcesses.Count == 0 || _coordinator.Document.Settings.GameDetectionEnabled) return false;
+        try
+        {
+            _coordinator.Document.Settings.GameDetectionEnabled = true;
+            _coordinator.SaveSettings();
+            RefreshSettings();
+            AppLog.Info($"Game detection was switched on automatically because {profile.Name} now watches for a game.");
+            ShowToast(
+                "Automation saved, game detection on",
+                $"PitLaunch now watches for {string.Join(", ", profile.GameProcesses)} and switches to {profile.Name}.",
+                "AccentBrush");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _coordinator.Document.Settings.GameDetectionEnabled = false;
+            AppLog.Error("Could not switch game detection on automatically: " + ex.Message);
+            ShowToast(
+                "Automation saved, but detection is off",
+                "Turn on \"Detect racing games\" in Settings to make it switch automatically.",
+                "WarningBrush");
+            return true;
         }
     }
 
@@ -2364,6 +2432,143 @@ public partial class PitLaunchView : Controls.UserControl
     {
         _pollSeconds = Math.Min(30, _pollSeconds + 1);
         PollValue.Text = _pollSeconds.ToString();
+    }
+
+    private void RefreshUpdateSection()
+    {
+        UpdateVersionText.Text = $"{AppInfo.ProductName} {AppInfo.Version}";
+        UpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+
+        // Keep an update the background check already found, so arriving from the sidebar
+        // banner lands on a ready-to-use Install button instead of clearing it.
+        if (_pendingUpdate is not null)
+        {
+            InstallUpdateButton.Visibility = Wpf.Visibility.Visible;
+            UpdateStatusText.Text = $"Version {_pendingUpdate.TargetFullRelease.Version} is available.";
+            return;
+        }
+
+        InstallUpdateButton.Visibility = Wpf.Visibility.Collapsed;
+        UpdateStatusText.Text = _updates.IsInstalledCopy
+            ? "Installed copy. Updates download only the parts that changed."
+            : "Portable copy. Install with Setup.exe to get small automatic updates.";
+    }
+
+    /// <summary>Looks for an update quietly after launch and raises the sidebar banner if one exists.</summary>
+    private async Task CheckForUpdatesInBackgroundAsync()
+    {
+        if (!_updates.IsInstalledCopy) return;
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        try
+        {
+            UpdateStatus status = await _updates.CheckAsync();
+            if (!status.CanInstall) return;
+            RunOnUi(() =>
+            {
+                _pendingUpdate = status.Update;
+                ShowUpdateBanner(status.Update!.TargetFullRelease.Version.ToString());
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Background update check failed: " + ex.Message);
+        }
+    }
+
+    private void ShowUpdateBanner(string version)
+    {
+        UpdateBannerVersion.Text = $"Version {version}";
+        if (UpdateBanner.Visibility == Wpf.Visibility.Visible) return;
+
+        UpdateBanner.Visibility = Wpf.Visibility.Visible;
+        UpdateBanner.BeginAnimation(OpacityProperty, StrongDoubleAnimationTo(1, 420));
+        UpdateBannerSlide.BeginAnimation(Media.TranslateTransform.YProperty, StrongDoubleAnimationTo(0, 460));
+
+        // A slow breathing halo reads as "waiting for you" without nagging.
+        Animation.DoubleAnimation pulse = new(1, 1.45, TimeSpan.FromMilliseconds(1600))
+        {
+            AutoReverse = true,
+            RepeatBehavior = Animation.RepeatBehavior.Forever,
+            EasingFunction = new Animation.SineEase { EasingMode = Animation.EasingMode.EaseInOut }
+        };
+        UpdateBannerPulse.BeginAnimation(Media.ScaleTransform.ScaleXProperty, pulse);
+        UpdateBannerPulse.BeginAnimation(Media.ScaleTransform.ScaleYProperty, pulse);
+        Animation.DoubleAnimation fade = new(0.3, 0.05, TimeSpan.FromMilliseconds(1600))
+        {
+            AutoReverse = true,
+            RepeatBehavior = Animation.RepeatBehavior.Forever,
+            EasingFunction = new Animation.SineEase { EasingMode = Animation.EasingMode.EaseInOut }
+        };
+        UpdateBannerHalo.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void UpdateBanner_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        RefreshSettings();
+        RefreshUpdateSection();
+        Navigate(AppPage.Settings);
+    }
+
+    private async void CheckUpdate_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        InstallUpdateButton.Visibility = Wpf.Visibility.Collapsed;
+        UpdateStatusText.Text = "Checking for updates...";
+        try
+        {
+            UpdateStatus status = await _updates.CheckAsync();
+            UpdateStatusText.Text = status.Message;
+            if (status.CanInstall)
+            {
+                _pendingUpdate = status.Update;
+                InstallUpdateButton.Visibility = Wpf.Visibility.Visible;
+                ShowUpdateBanner(status.Update!.TargetFullRelease.Version.ToString());
+                ShowToast("Update available", status.Message, "AccentBrush");
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "Could not check for updates: " + ex.Message;
+        }
+        finally
+        {
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private async void InstallUpdate_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (_pendingUpdate is null) return;
+        if (_coordinator.IsBusy)
+        {
+            ShowToast("Switch in progress", "Wait for the current setup switch to finish, then install.", "WarningBrush");
+            return;
+        }
+
+        InstallUpdateButton.IsEnabled = false;
+        CheckUpdateButton.IsEnabled = false;
+        UpdateProgress.Visibility = Wpf.Visibility.Visible;
+        UpdateProgress.Value = 0;
+        UpdateStatusText.Text = "Downloading update...";
+
+        string? error = await _updates.DownloadAsync(_pendingUpdate,
+            percent => RunOnUi(() => UpdateProgress.Value = percent));
+        if (error is not null)
+        {
+            UpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+            UpdateStatusText.Text = "Download failed: " + error;
+            InstallUpdateButton.IsEnabled = true;
+            CheckUpdateButton.IsEnabled = true;
+            return;
+        }
+
+        UpdateStatusText.Text = "Restarting to finish the update...";
+        // Succeeds by restarting the process, so anything after this only runs on failure.
+        string? applyError = _updates.ApplyAndRestart(_pendingUpdate);
+        UpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+        UpdateStatusText.Text = "Could not apply the update: " + applyError;
+        InstallUpdateButton.IsEnabled = true;
+        CheckUpdateButton.IsEnabled = true;
     }
 
     private void SaveSettings_Click(object sender, Wpf.RoutedEventArgs e)
