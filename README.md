@@ -49,9 +49,18 @@ you to type in resolutions and device names.
 
 ## Install
 
-Download **`PitLaunch-Setup.exe`** from the [latest release](https://github.com/Cevzom/PitLaunch/releases)
-and run it. No administrator rights are needed; it installs for the current user and adds
-Start Menu and Desktop shortcuts.
+**[⬇ Download PitLaunch-win-Setup.exe](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)**
+
+Run it. No administrator rights are needed; it installs for the current user and adds
+Start Menu and Desktop shortcuts. It installs quietly in a few seconds and opens itself —
+there is no setup wizard to click through.
+
+Every release lists a SHA256 for the installer. Since PitLaunch is not code-signed yet, you
+can check the file you downloaded matches:
+
+```powershell
+Get-FileHash .\PitLaunch-win-Setup.exe -Algorithm SHA256
+```
 
 There is also a portable build if you prefer a copy that touches nothing else on the machine —
 extract it anywhere and run `PitLaunch.exe`. The trade-off is updates: a portable copy has to
@@ -59,6 +68,28 @@ be downloaded again in full each time.
 
 > PitLaunch is not code-signed yet, so Windows SmartScreen shows a warning the first time.
 > Choose **More info → Run anyway**.
+
+## How it compares
+
+| | PitLaunch | DisplayMagician | SimLauncher-style launchers |
+|---|---|---|---|
+| Displays | ✅ full topology, validated | ✅ | ❌ |
+| Sound devices | ✅ playback, comms, mic | ✅ | ❌ |
+| Window positions | ✅ learned automatically | ❌ | ❌ |
+| Launch / close apps | ✅ | partial | ✅ |
+| Validates before applying | ✅ asks Windows first | ❌ | n/a |
+| Rollback on failure | ✅ | ❌ | n/a |
+
+**DisplayMagician** covers displays and audio well, but switching profiles is the part people
+report as unreliable, and it does not restore where your windows were.
+
+**App launchers** built for sim rigs start your game and its tools, which PitLaunch also does,
+but they leave the actual hardware — screens and sound — for you to sort out.
+
+The difference is that PitLaunch treats one setup as a single unit: screens, sound, windows and
+apps move together. And before it changes anything, it asks Windows to validate the exact
+display layout, rolling back if Windows refuses — which is what stops a bad switch leaving you
+staring at a black screen.
 
 ## Updates
 

@@ -40,6 +40,12 @@ internal sealed class Profile
     public List<AppRule> Apps { get; set; } = [];
     public List<string> GameProcesses { get; set; } = [];
 
+    /// <summary>Hold the screen awake while this setup is active. Wheel input does not reset the Windows idle timer.</summary>
+    public bool KeepAwake { get; set; }
+
+    /// <summary>Game controllers this setup expects, by product name. Missing ones are reported on activation.</summary>
+    public List<string> ExpectedControllers { get; set; } = [];
+
     [JsonIgnore]
     public string CaptureSummary
     {

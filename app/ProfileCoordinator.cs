@@ -9,6 +9,8 @@ internal sealed class ProfileCoordinator : IDisposable
     private readonly AudioService _audio;
     private readonly WindowService _windows;
     private readonly AppService _apps;
+    private readonly PowerService _power = new();
+    private readonly ControllerService _controllers = new();
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private AppSettings _lastSavedSettings;
 
@@ -42,6 +44,12 @@ internal sealed class ProfileCoordinator : IDisposable
         : null;
 
     public List<AudioDeviceOption> ListAudioDevices(bool capture) => _audio.ListActiveEndpoints(capture);
+
+    public List<ControllerDevice> ListControllers() => _controllers.ListConnected();
+
+    /// <summary>Expected controllers for this setup that are not plugged in right now.</summary>
+    public List<string> FindMissingControllers(Profile profile) =>
+        profile.ExpectedControllers.Count == 0 ? [] : _controllers.FindMissing(profile.ExpectedControllers);
 
     public AudioSnapshot CaptureCurrentAudio() => _audio.Capture();
 
@@ -198,6 +206,26 @@ internal sealed class ProfileCoordinator : IDisposable
         bool waitForLaunchedApps = target.Apps.Any(app => app.StartOnActivate);
         try { _windows.Restore(target.Windows, report, waitForLaunchedApps); }
         catch (Exception ex) { report.Warn("Windows", ex.Message); }
+
+        // Report a wheel or pedal set that is expected but unplugged. This is a warning, never a
+        // failure: the setup is still perfectly usable without it.
+        try
+        {
+            List<string> missing = FindMissingControllers(target);
+            if (missing.Count > 0)
+            {
+                report.Warn("Controllers", $"Not connected: {string.Join(", ", missing)}.");
+            }
+            else if (target.ExpectedControllers.Count > 0)
+            {
+                report.Info("Controllers", $"All {target.ExpectedControllers.Count} expected device(s) connected.");
+            }
+        }
+        catch (Exception ex) { report.Warn("Controllers", ex.Message); }
+
+        try { _power.SetKeepAwake(target.KeepAwake, report); }
+        catch (Exception ex) { report.Warn("Power", ex.Message); }
+
         DateTimeOffset activatedAt = DateTimeOffset.UtcNow;
         Document.Runtime.ActiveProfileId = target.Id;
         Document.Runtime.LastSwitchUtc = activatedAt;
@@ -531,5 +559,10 @@ internal sealed class ProfileCoordinator : IDisposable
         BusyChanged?.Invoke(busy, message);
     }
 
-    public void Dispose() => _operationGate.Dispose();
+    public void Dispose()
+    {
+        // Release the keep-awake request so closing PitLaunch never leaves the machine unable to sleep.
+        _power.Dispose();
+        _operationGate.Dispose();
+    }
 }

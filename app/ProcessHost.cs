@@ -538,6 +538,39 @@ internal static class SelfTest
 
         Check("window capture", () => _ = new WindowService().Capture());
 
+        Check("keep-awake request", () =>
+        {
+            using PowerService power = new();
+            power.SetKeepAwake(true);
+            if (!power.IsHolding) throw new InvalidOperationException("Windows refused the keep-awake request.");
+            power.SetKeepAwake(false);
+            if (power.IsHolding) throw new InvalidOperationException("The keep-awake request was not released.");
+        });
+
+        Check("controller discovery", () =>
+        {
+            ControllerService controllers = new();
+            List<ControllerDevice> devices = controllers.ListConnected(out ControllerService.Diagnostics probe);
+
+            // A machine may genuinely have no wheel attached, so an empty result is valid. What is
+            // NOT valid is failing to query the HID devices that do exist - that silently reported
+            // "no controllers" on every machine until the RID_DEVICE_INFO size was corrected.
+            if (probe.HidDevicesSeen > 0 && probe.InfoQueriesSucceeded == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Queried {probe.HidDevicesSeen} HID devices and every lookup failed; controller detection is broken.");
+            }
+            foreach (ControllerDevice device in devices)
+            {
+                if (string.IsNullOrWhiteSpace(device.Name))
+                    throw new InvalidOperationException("A controller was discovered without a name.");
+            }
+            if (controllers.FindMissing(devices.Select(device => device.Name)).Count != 0)
+                throw new InvalidOperationException("A connected controller was reported as missing.");
+            if (controllers.FindMissing(["PitLaunch self-test absent device"]).Count != 1)
+                throw new InvalidOperationException("An absent controller was not reported as missing.");
+        });
+
         try
         {
             string path = string.IsNullOrWhiteSpace(outputPath)
