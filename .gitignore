@@ -2,6 +2,7 @@
 *
 
 !.gitignore
+!LICENSE
 !PitLaunch.csproj
 !build.ps1
 !build-installer.ps1
