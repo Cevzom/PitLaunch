@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/pitlaunch-logo-v3.png" alt="PitLaunch" width="96" />
+<img src="assets/pitlaunch-mark.png" alt="PitLaunch" width="96" />
 
 # PitLaunch
 
@@ -8,9 +8,9 @@
 
 <br>
 
-[![Download](https://img.shields.io/badge/⬇_Download_for_Windows-2EA88A?style=for-the-badge&logoColor=white)](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)
+[![Download](https://img.shields.io/badge/Download_for_Windows-20B8F0?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)
 
-<sub>Windows 10 / 11 · no admin needed · updates itself</sub>
+<sub>Windows 10 / 11 &nbsp;|&nbsp; no admin needed &nbsp;|&nbsp; updates itself</sub>
 
 <br><br>
 
@@ -27,14 +27,14 @@ PitLaunch remembers both and moves the whole machine between them.
 
 |  |  |
 |---|---|
-| 🖥️ **Screens** | Which monitors, what resolution, refresh rate and layout |
-| 🔊 **Sound** | Speakers, headset and mic, per setup |
-| 🪟 **Windows** | Puts your windows back where they were |
-| 🚀 **Apps** | Starts what you need, closes what you don't |
-| 🎮 **Games** | Picks your installed games automatically — launch one, it switches |
-| 🛞 **Hardware** | Tells you if the wheel or pedals aren't plugged in |
-| ☕ **Stay awake** | No screen blanking mid-stint |
-| ⌨️ **Hotkeys** | A shortcut per setup |
+| **Screens** | Which monitors, what resolution, refresh rate and layout |
+| **Sound** | Speakers, headset and mic, per setup |
+| **Windows** | Puts your windows back where they were |
+| **Apps** | Starts what you need, closes what you don't |
+| **Games** | Picks your installed games automatically, launch one and it switches |
+| **Hardware** | Tells you if the wheel or pedals aren't plugged in |
+| **Stay awake** | No screen blanking mid-stint |
+| **Hotkeys** | A shortcut per setup |
 
 <br>
 
@@ -46,14 +46,14 @@ PitLaunch remembers both and moves the whole machine between them.
 
 ## Getting started
 
-Run the installer — it takes a few seconds, then opens itself. No wizard.
+Run the installer. It takes a few seconds, then opens itself. No wizard.
 
 Click **Create setup**, pick your screens and sound, and save it. Do that once for the desk
 and once for the rig. Then switch from the app, the tray, a hotkey, or automatically when a
 game starts.
 
-> **SmartScreen will warn you** the first time — PitLaunch isn't code-signed yet.
-> Choose *More info → Run anyway*. Every release lists a SHA256 so you can verify the file.
+> **SmartScreen will warn you** the first time, because PitLaunch isn't code-signed yet.
+> Choose *More info -> Run anyway*. Every release lists a SHA256 so you can verify the file.
 
 <br>
 
@@ -61,22 +61,22 @@ game starts.
 
 |  | PitLaunch | DisplayMagician | Sim launchers |
 |---|:---:|:---:|:---:|
-| Screens | ✅ | ✅ | — |
-| Sound | ✅ | ✅ | — |
-| Window positions | ✅ | — | — |
-| Launch apps | ✅ | partial | ✅ |
-| Checks with Windows first | ✅ | — | — |
-| Rolls back if it fails | ✅ | — | — |
+| Screens | yes | yes | no |
+| Sound | yes | yes | no |
+| Window positions | yes | no | no |
+| Launch apps | yes | partial | yes |
+| Checks with Windows first | yes | no | no |
+| Rolls back if it fails | yes | no | no |
 
-Others do part of it. PitLaunch treats a setup as one thing — and asks Windows to validate
-a display layout *before* applying it, so a bad switch can't leave you on a black screen.
+Others do part of it. PitLaunch treats a setup as one thing, and asks Windows to validate a
+display layout *before* applying it, so a bad switch can't leave you on a black screen.
 
 <br>
 
 ## Updates
 
 Installed copies patch themselves. An **Update available** marker appears in the sidebar and
-downloads only what changed — usually **under 1 MB** instead of 76 MB.
+downloads only what changed, usually **under 1 MB** instead of 76 MB.
 
 Your setups live in `%APPDATA%\PitLaunch`, so updating never touches them.
 
@@ -96,7 +96,7 @@ PitLaunch.exe --restore-displays
 
 ## More
 
-**[User guide](docs/USER-GUIDE.md)** · **[Releasing](RELEASING.md)** · **[Design notes](DESIGN.md)**
+**[User guide](docs/USER-GUIDE.md)** &nbsp;|&nbsp; **[Releasing](RELEASING.md)** &nbsp;|&nbsp; **[Design notes](DESIGN.md)**
 
 Public beta, used daily on a three-monitor desk and a single-screen rig.
 Found a bug? Send `%APPDATA%\PitLaunch\pitlaunch.log` and what you were doing.

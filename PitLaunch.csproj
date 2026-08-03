@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -6,7 +6,7 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>assets\pitlaunch-v3.ico</ApplicationIcon>
+    <ApplicationIcon>assets\pitlaunch-v4.ico</ApplicationIcon>
     <ApplicationManifest>app\app.manifest</ApplicationManifest>
     <AssemblyName>PitLaunch</AssemblyName>
     <RootNamespace>PitLaunch</RootNamespace>
@@ -30,7 +30,7 @@
   <ItemGroup>
     <Compile Include="app\**\*.cs" />
     <Page Include="app\PitLaunchView.xaml" />
-    <Resource Include="assets\pitlaunch-logo-v3.png" />
+    <Resource Include="assets\pitlaunch-mark.png" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>

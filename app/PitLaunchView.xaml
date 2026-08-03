@@ -1,4 +1,4 @@
-<UserControl x:Class="PitLaunch.PitLaunchView"
+﻿<UserControl x:Class="PitLaunch.PitLaunchView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -12,23 +12,25 @@
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
-        <SolidColorBrush x:Key="WindowBrush" Color="#0E100F" />
-        <SolidColorBrush x:Key="SidebarBrush" Color="#121513" />
-        <SolidColorBrush x:Key="CanvasBrush" Color="#171A18" />
-        <SolidColorBrush x:Key="ChromeBrush" Color="#191D1A" />
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#1D211E" />
-        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#252A26" />
-        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#292E29" />
-        <SolidColorBrush x:Key="BorderBrush" Color="#343A35" />
-        <SolidColorBrush x:Key="BorderSoftBrush" Color="#292E2A" />
-        <SolidColorBrush x:Key="TextBrush" Color="#F1F3EE" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#A5ABA3" />
-        <SolidColorBrush x:Key="FaintBrush" Color="#737A72" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#82DDBB" />
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#18362D" />
-        <SolidColorBrush x:Key="AccentInkBrush" Color="#0B211A" />
-        <SolidColorBrush x:Key="InfoBrush" Color="#82AFFF" />
-        <SolidColorBrush x:Key="InfoSoftBrush" Color="#1D2C47" />
+        <!-- Neutrals are cool-grey rather than green-tinted so the cyan brand sits naturally. -->
+        <SolidColorBrush x:Key="WindowBrush" Color="#0D0F11" />
+        <SolidColorBrush x:Key="SidebarBrush" Color="#111417" />
+        <SolidColorBrush x:Key="CanvasBrush" Color="#16191D" />
+        <SolidColorBrush x:Key="ChromeBrush" Color="#181C20" />
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#1C2024" />
+        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#24292E" />
+        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#282D33" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#333942" />
+        <SolidColorBrush x:Key="BorderSoftBrush" Color="#282D33" />
+        <SolidColorBrush x:Key="TextBrush" Color="#EFF2F5" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#A3AAB3" />
+        <SolidColorBrush x:Key="FaintBrush" Color="#717983" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#20B8F0" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#0E3348" />
+        <SolidColorBrush x:Key="AccentInkBrush" Color="#04202C" />
+        <!-- Violet, so category badges stay legible beside a cyan accent instead of competing with it. -->
+        <SolidColorBrush x:Key="InfoBrush" Color="#A98BFF" />
+        <SolidColorBrush x:Key="InfoSoftBrush" Color="#2A2450" />
         <SolidColorBrush x:Key="WarningBrush" Color="#E7B86C" />
         <SolidColorBrush x:Key="WarningSoftBrush" Color="#392D1B" />
         <SolidColorBrush x:Key="ErrorBrush" Color="#EF8E86" />
@@ -87,7 +89,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}">
                             <Grid>
-                                <Border x:Name="Hover" CornerRadius="5" Background="#10F1F3EE" Opacity="0" />
+                                <Border x:Name="Hover" CornerRadius="5" Background="#10EFF2F5" Opacity="0" />
                                 <ContentPresenter HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"
                                                   Margin="{TemplateBinding Padding}"
@@ -219,7 +221,7 @@
             <Setter Property="Padding" Value="11,9" />
             <Setter Property="Margin" Value="0,0,0,10" />
             <Setter Property="Background" Value="{StaticResource InfoSoftBrush}" />
-            <Setter Property="BorderBrush" Value="#35527B" />
+            <Setter Property="BorderBrush" Value="#453A78" />
             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Template">
@@ -234,7 +236,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#1D3555" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#322A5C" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource InfoBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.8" /></Trigger>
@@ -463,9 +465,9 @@
             <Grid x:Name="TitleDragZone" Background="Transparent" MouseLeftButtonDown="TitleDrag_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="216" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
-                    <Image Source="/PitLaunch;component/assets/pitlaunch-logo-v3.png" Width="24" Height="24" Stretch="Uniform" />
+                    <Image Source="/PitLaunch;component/assets/pitlaunch-mark.png" Width="24" Height="24" Stretch="Uniform" />
                     <TextBlock Text="PitLaunch" FontSize="13" FontWeight="SemiBold" Margin="9,0,0,0" VerticalAlignment="Center" />
-                    <Border Background="{StaticResource AccentSoftBrush}" BorderBrush="#315E4E" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                    <Border Background="{StaticResource AccentSoftBrush}" BorderBrush="#17547A" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="BETA" Foreground="{StaticResource AccentBrush}" FontSize="9" FontWeight="Bold" />
                     </Border>
                 </StackPanel>
@@ -485,7 +487,7 @@
                 <StackPanel>
                     <TextBlock Text="WORKSPACE" Style="{StaticResource EyebrowText}" Margin="12,0,0,9" />
                     <Grid x:Name="NavigationHost" Height="88" ClipToBounds="False">
-                        <Border x:Name="NavActiveBackground" Height="42" CornerRadius="6" Background="{StaticResource AccentSoftBrush}" BorderBrush="#315E4E" BorderThickness="1" VerticalAlignment="Top" IsHitTestVisible="False">
+                        <Border x:Name="NavActiveBackground" Height="42" CornerRadius="6" Background="{StaticResource AccentSoftBrush}" BorderBrush="#17547A" BorderThickness="1" VerticalAlignment="Top" IsHitTestVisible="False">
                             <Border.RenderTransform><TranslateTransform /></Border.RenderTransform>
                         </Border>
                         <Border x:Name="NavActivePill" Width="3" Height="20" CornerRadius="2" Background="{StaticResource AccentBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,11,0,0" IsHitTestVisible="False">
@@ -533,7 +535,7 @@
                             <TextBlock Text="Restore displays" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Border x:Name="CurrentStrip" CornerRadius="7" Background="{StaticResource AccentSoftBrush}" BorderBrush="#2C5A49" BorderThickness="1" Padding="13,12">
+                    <Border x:Name="CurrentStrip" CornerRadius="7" Background="{StaticResource AccentSoftBrush}" BorderBrush="#155070" BorderThickness="1" Padding="13,12">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                             <Ellipse Width="7" Height="7" Fill="{StaticResource AccentBrush}" VerticalAlignment="Top" Margin="0,5,0,0" />
@@ -945,7 +947,7 @@
                 </ScrollViewer>
             </Grid>
 
-            <Grid x:Name="BusyLayer" Visibility="Collapsed" Opacity="0" Background="#D90E100F">
+            <Grid x:Name="BusyLayer" Visibility="Collapsed" Opacity="0" Background="#D90D0F11">
                 <Border Width="360" Padding="28,26" CornerRadius="8" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
                         <Grid Width="38" Height="38" RenderTransformOrigin="0.5,0.5" Margin="0,0,0,17">
@@ -972,7 +974,7 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="DialogLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D00E100F" MouseLeftButtonDown="DialogLayer_MouseLeftButtonDown">
+        <Grid x:Name="DialogLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D00D0F11" MouseLeftButtonDown="DialogLayer_MouseLeftButtonDown">
             <Border Width="440" Padding="24" CornerRadius="8" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
                     <TextBlock x:Name="DialogTitle" FontSize="20" FontWeight="SemiBold" />
@@ -990,7 +992,7 @@
         </Grid>
 
         <!-- Pick a game from the installed library instead of typing a process name. -->
-        <Grid x:Name="GamePickerLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D80E100F" MouseLeftButtonDown="GamePickerLayer_MouseLeftButtonDown">
+        <Grid x:Name="GamePickerLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D80D0F11" MouseLeftButtonDown="GamePickerLayer_MouseLeftButtonDown">
             <Border Width="470" MaxHeight="560" Padding="0" CornerRadius="10" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -1036,14 +1038,14 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="SetupGuideLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D80E100F" MouseLeftButtonDown="SetupGuideLayer_MouseLeftButtonDown">
+        <Grid x:Name="SetupGuideLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D80D0F11" MouseLeftButtonDown="SetupGuideLayer_MouseLeftButtonDown">
             <Border Width="860" MaxHeight="700" Padding="28,26,28,24" CornerRadius="8" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="/PitLaunch;component/assets/pitlaunch-logo-v3.png" Width="32" Height="32" Stretch="Uniform" Margin="0,0,12,0" />
+                            <Image Source="/PitLaunch;component/assets/pitlaunch-mark.png" Width="32" Height="32" Stretch="Uniform" Margin="0,0,12,0" />
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Create setup" FontSize="20" FontWeight="SemiBold" />
                                 <TextBlock x:Name="SetupGuideStepLabel" Text="STEP 1 OF 2" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" Margin="0,4,0,0" />
@@ -1143,7 +1145,7 @@
                                         </Grid>
                                     </Border>
 
-                                    <Border x:Name="SetupGuideValidationStrip" CornerRadius="6" Background="{StaticResource InfoSoftBrush}" BorderBrush="#35527B" BorderThickness="1" Padding="12,10" Margin="0,15,0,0">
+                                    <Border x:Name="SetupGuideValidationStrip" CornerRadius="6" Background="{StaticResource InfoSoftBrush}" BorderBrush="#453A78" BorderThickness="1" Padding="12,10" Margin="0,15,0,0">
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                             <ui:SymbolIcon Symbol="ShieldCheckmark24" Foreground="{StaticResource InfoBrush}" FontSize="16" VerticalAlignment="Center" />

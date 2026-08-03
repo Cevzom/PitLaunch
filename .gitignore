@@ -1,4 +1,4 @@
-# Publish only the portable PitLaunch source and documentation.
+﻿# Publish only the portable PitLaunch source and documentation.
 *
 
 !.gitignore
@@ -23,6 +23,6 @@
 
 !assets/
 assets/*
-!assets/pitlaunch-logo-v3.png
-!assets/pitlaunch-v3.ico
+!assets/pitlaunch-mark.png
+!assets/pitlaunch-v4.ico
 !assets/splash.png

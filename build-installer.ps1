@@ -1,4 +1,4 @@
-# Builds the installable PitLaunch and its update packages.
+﻿# Builds the installable PitLaunch and its update packages.
 #
 # Unlike build.ps1 (which produces the single-file portable zip), this publishes the app as loose
 # files so Velopack can ship UPDATES AS DELTAS: only the files that actually changed are downloaded,
@@ -85,7 +85,7 @@ if (!(Test-Path -LiteralPath $PublishedExe)) { throw "Publish completed without 
 $previousFull = @(Get-ChildItem -Path $ReleaseDir -Filter "*-full.nupkg" -ErrorAction SilentlyContinue)
 Write-Host "Existing full packages in feed: $($previousFull.Count)"
 
-$icon = Join-Path $Root "assets\pitlaunch-v3.ico"
+$icon = Join-Path $Root "assets\pitlaunch-v4.ico"
 # The install itself is silent and takes seconds; the splash is the only thing telling the user
 # it worked, so it is not decoration.
 $splash = Join-Path $Root "assets\splash.png"
@@ -100,7 +100,7 @@ if (!(Test-Path -LiteralPath $splash)) { throw "Splash image missing: $splash" }
     --mainExe "PitLaunch.exe" `
     --icon $icon `
     --splashImage $splash `
-    --splashProgressColor "#2EA88A" `
+    --splashProgressColor "#20B8F0" `
     --channel $Channel `
     --outputDir $ReleaseDir
 if ($LASTEXITCODE -ne 0) { throw "Velopack pack failed with exit code $LASTEXITCODE" }

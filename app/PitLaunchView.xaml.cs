@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Forms = System.Windows.Forms;
 using Controls = System.Windows.Controls;
 using Input = System.Windows.Input;
@@ -85,7 +85,7 @@ public partial class PitLaunchView : Controls.UserControl
 
             _selectedProfileId = profile.Id;
             RunOnUi(RefreshAll);
-            // The guide's button is "Create and switch" — the user already committed, so skip the extra dialog.
+            // The guide's button is "Create and switch" â€” the user already committed, so skip the extra dialog.
             await ActivateProfileAsync(profile.Id, ActivationSource.User, bypassConfirm: true);
         }
         catch (Exception ex)
@@ -517,7 +517,7 @@ public partial class PitLaunchView : Controls.UserControl
             int count = snapshot.Monitors.Count(monitor => monitor.Enabled);
             SetupGuidePreviewSummary.Text = $"{count} screen{(count == 1 ? string.Empty : "s")}  |  {main.FriendlyName} main";
             SetupGuideValidationStrip.Background = Brush("InfoSoftBrush");
-            SetupGuideValidationStrip.BorderBrush = NewBrush("#35527B");
+            SetupGuideValidationStrip.BorderBrush = NewBrush("#453A78");
             SetupGuideValidationText.Text = "Ready. PitLaunch will ask Windows to validate this exact plan before it saves or switches.";
             SetupGuideCaptureButton.IsEnabled = true;
         }
@@ -831,8 +831,8 @@ public partial class PitLaunchView : Controls.UserControl
     {
         bool lastUsed = _coordinator.Document.Runtime.ActiveProfileId == profile.Id;
         bool sim = EffectiveSetupKind(profile) == SetupKind.SimRacing;
-        Media.SolidColorBrush background = NewBrush(lastUsed ? "#1A2B25" : "#1D211E");
-        Media.SolidColorBrush borderBrush = NewBrush(lastUsed ? "#3C7964" : "#303631");
+        Media.SolidColorBrush background = NewBrush(lastUsed ? "#14293A" : "#1C2024");
+        Media.SolidColorBrush borderBrush = NewBrush(lastUsed ? "#2E7CA8" : "#333942");
         Media.Effects.DropShadowEffect shadow = new()
         {
             Color = Media.Colors.Black,
@@ -953,8 +953,8 @@ public partial class PitLaunchView : Controls.UserControl
     private Controls.Border CreateProfileCard(Profile profile)
     {
         bool active = _coordinator.Document.Runtime.ActiveProfileId == profile.Id;
-        Media.SolidColorBrush background = NewBrush(active ? "#1A2B25" : "#1D211E");
-        Media.SolidColorBrush borderBrush = NewBrush(active ? "#3C7964" : "#303631");
+        Media.SolidColorBrush background = NewBrush(active ? "#14293A" : "#1C2024");
+        Media.SolidColorBrush borderBrush = NewBrush(active ? "#2E7CA8" : "#333942");
         Media.Effects.DropShadowEffect shadow = new()
         {
             Color = Media.Colors.Black,
@@ -1114,21 +1114,21 @@ public partial class PitLaunchView : Controls.UserControl
         {
             background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(
-                    active ? Media.Color.FromRgb(29, 54, 45) : Media.Color.FromRgb(36, 41, 37),
+                    active ? Media.Color.FromRgb(26, 55, 76) : Media.Color.FromRgb(36, 41, 46),
                     TimeSpan.FromMilliseconds(150)));
             borderBrush.BeginAnimation(Media.SolidColorBrush.ColorProperty,
-                new Animation.ColorAnimation(active ? Media.Color.FromRgb(73, 143, 117) : Media.Color.FromRgb(67, 75, 68), TimeSpan.FromMilliseconds(150)));
+                new Animation.ColorAnimation(active ? Media.Color.FromRgb(58, 150, 198) : Media.Color.FromRgb(67, 74, 85), TimeSpan.FromMilliseconds(150)));
             lift.BeginAnimation(Media.TranslateTransform.YProperty, DoubleAnimationTo(-3, 150));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.BlurRadiusProperty, DoubleAnimationTo(22, 150));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.OpacityProperty, DoubleAnimationTo(active ? 0.28 : 0.22, 150));
         };
         card.MouseLeave += (_, _) =>
         {
-            Media.Color normal = active ? Media.Color.FromRgb(26, 43, 37) : Media.Color.FromRgb(29, 33, 30);
+            Media.Color normal = active ? Media.Color.FromRgb(20, 41, 58) : Media.Color.FromRgb(28, 32, 36);
             background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(normal, TimeSpan.FromMilliseconds(160)));
             borderBrush.BeginAnimation(Media.SolidColorBrush.ColorProperty,
-                new Animation.ColorAnimation(active ? Media.Color.FromRgb(60, 121, 100) : Media.Color.FromRgb(48, 54, 49), TimeSpan.FromMilliseconds(160)));
+                new Animation.ColorAnimation(active ? Media.Color.FromRgb(46, 124, 168) : Media.Color.FromRgb(51, 57, 66), TimeSpan.FromMilliseconds(160)));
             lift.BeginAnimation(Media.TranslateTransform.YProperty, DoubleAnimationTo(0, 160));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.BlurRadiusProperty, DoubleAnimationTo(14, 160));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.OpacityProperty, DoubleAnimationTo(active ? 0.2 : 0.12, 160));
@@ -1161,11 +1161,11 @@ public partial class PitLaunchView : Controls.UserControl
         {
             background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(
-                    highlighted ? Media.Color.FromRgb(29, 54, 45) : Media.Color.FromRgb(36, 41, 37),
+                    highlighted ? Media.Color.FromRgb(26, 55, 76) : Media.Color.FromRgb(36, 41, 46),
                     TimeSpan.FromMilliseconds(150)));
             borderBrush.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(
-                    highlighted ? Media.Color.FromRgb(73, 143, 117) : Media.Color.FromRgb(67, 75, 68),
+                    highlighted ? Media.Color.FromRgb(58, 150, 198) : Media.Color.FromRgb(67, 74, 85),
                     TimeSpan.FromMilliseconds(150)));
             lift.BeginAnimation(Media.TranslateTransform.YProperty, DoubleAnimationTo(-3, 150));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.BlurRadiusProperty, DoubleAnimationTo(22, 150));
@@ -1176,11 +1176,11 @@ public partial class PitLaunchView : Controls.UserControl
         {
             background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(
-                    highlighted ? Media.Color.FromRgb(26, 43, 37) : Media.Color.FromRgb(29, 33, 30),
+                    highlighted ? Media.Color.FromRgb(20, 41, 58) : Media.Color.FromRgb(28, 32, 36),
                     TimeSpan.FromMilliseconds(160)));
             borderBrush.BeginAnimation(Media.SolidColorBrush.ColorProperty,
                 new Animation.ColorAnimation(
-                    highlighted ? Media.Color.FromRgb(60, 121, 100) : Media.Color.FromRgb(48, 54, 49),
+                    highlighted ? Media.Color.FromRgb(46, 124, 168) : Media.Color.FromRgb(51, 57, 66),
                     TimeSpan.FromMilliseconds(160)));
             lift.BeginAnimation(Media.TranslateTransform.YProperty, DoubleAnimationTo(0, 160));
             shadow.BeginAnimation(Media.Effects.DropShadowEffect.BlurRadiusProperty, DoubleAnimationTo(16, 160));
@@ -1273,7 +1273,7 @@ public partial class PitLaunchView : Controls.UserControl
 
     private Controls.Border CreateDetailRow(Fluent.SymbolRegular symbol, Wpf.UIElement primary, string secondary)
     {
-        Media.SolidColorBrush hoverBrush = NewBrush("#00171A18");
+        Media.SolidColorBrush hoverBrush = NewBrush("#0016191D");
         Controls.Border row = new()
         {
             Height = 42,
@@ -1331,7 +1331,7 @@ public partial class PitLaunchView : Controls.UserControl
         row.MouseEnter += (_, _) =>
         {
             hoverBrush.BeginAnimation(Media.SolidColorBrush.ColorProperty,
-                new Animation.ColorAnimation(Media.Color.FromArgb(48, 58, 65, 59), TimeSpan.FromMilliseconds(120)));
+                new Animation.ColorAnimation(Media.Color.FromArgb(48, 58, 66, 76), TimeSpan.FromMilliseconds(120)));
             chevron.BeginAnimation(OpacityProperty, DoubleAnimationTo(1, 130));
         };
         row.MouseLeave += (_, _) =>
@@ -2366,7 +2366,7 @@ public partial class PitLaunchView : Controls.UserControl
     private Controls.Border CreateGameRow(GameEntry game, HashSet<string> alreadyAdded)
     {
         bool added = alreadyAdded.Contains(game.ProcessName);
-        Media.SolidColorBrush background = NewBrush("#171D1B");
+        Media.SolidColorBrush background = NewBrush("#1A1E22");
         Controls.Border row = new()
         {
             CornerRadius = new Wpf.CornerRadius(8),
@@ -2447,9 +2447,9 @@ public partial class PitLaunchView : Controls.UserControl
 
         row.Child = layout;
         row.MouseEnter += (_, _) => background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
-            new Animation.ColorAnimation(Media.Color.FromRgb(35, 45, 41), TimeSpan.FromMilliseconds(130)));
+            new Animation.ColorAnimation(Media.Color.FromRgb(35, 42, 49), TimeSpan.FromMilliseconds(130)));
         row.MouseLeave += (_, _) => background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
-            new Animation.ColorAnimation(Media.Color.FromRgb(23, 29, 27), TimeSpan.FromMilliseconds(150)));
+            new Animation.ColorAnimation(Media.Color.FromRgb(26, 30, 34), TimeSpan.FromMilliseconds(150)));
         return row;
     }
 
