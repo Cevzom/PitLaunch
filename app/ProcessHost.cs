@@ -17,7 +17,8 @@ internal enum LaunchRequestKind
     InstallStartupTask,
     RemoveStartupTask,
     Exit,
-    SelfTest
+    SelfTest,
+    ScanGames
 }
 
 internal sealed class LaunchRequest
@@ -70,6 +71,9 @@ internal sealed class LaunchRequest
                     break;
                 case "--self-test":
                     request.Kind = LaunchRequestKind.SelfTest;
+                    break;
+                case "--scan-games":
+                    request.Kind = LaunchRequestKind.ScanGames;
                     break;
                 case "--output" when i + 1 < args.Length:
                     request.OutputPath = args[++i];
@@ -545,6 +549,24 @@ internal static class SelfTest
             if (!power.IsHolding) throw new InvalidOperationException("Windows refused the keep-awake request.");
             power.SetKeepAwake(false);
             if (power.IsHolding) throw new InvalidOperationException("The keep-awake request was not released.");
+        });
+
+        Check("game library scan", () =>
+        {
+            List<GameEntry> games = new GameLibraryService().Scan();
+            // A machine may have no launcher installed, so an empty list is valid. Every entry
+            // that IS returned has to be usable: real file, sane name, and a matchable process.
+            foreach (GameEntry game in games)
+            {
+                if (string.IsNullOrWhiteSpace(game.Name))
+                    throw new InvalidOperationException("A game was found without a name.");
+                if (!File.Exists(game.ExecutablePath))
+                    throw new InvalidOperationException($"{game.Name} points at a missing file: {game.ExecutablePath}");
+                if (string.IsNullOrWhiteSpace(game.ProcessName))
+                    throw new InvalidOperationException($"{game.Name} produced an empty process name.");
+            }
+            if (games.Select(game => game.ExecutablePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() != games.Count)
+                throw new InvalidOperationException("The same executable was listed twice.");
         });
 
         Check("controller discovery", () =>

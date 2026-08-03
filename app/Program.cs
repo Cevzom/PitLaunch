@@ -28,6 +28,12 @@ internal static class Program
             return SelfTest.Run(request.OutputPath);
         }
 
+        // Support aid: shows exactly which games PitLaunch can see, for "my game isn't detected".
+        if (request.Kind == LaunchRequestKind.ScanGames)
+        {
+            return GameScanReport.Run(request.OutputPath);
+        }
+
         if (request.Kind is LaunchRequestKind.InstallStartupTask or LaunchRequestKind.RemoveStartupTask)
         {
             return RunStartupTaskMaintenance(request);

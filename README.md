@@ -1,131 +1,108 @@
 <div align="center">
 
-<img src="assets/pitlaunch-logo-v3.png" alt="PitLaunch" width="108" />
+<img src="assets/pitlaunch-logo-v3.png" alt="PitLaunch" width="96" />
 
 # PitLaunch
 
-**One PC. A desk and a sim rig. One click between them.**
+### One PC. Desk and sim rig. One click between them.
 
-PitLaunch captures which monitors, sound devices, windows and apps belong to each way you
-use your computer, then puts the whole machine into that state on demand.
+<br>
 
-[![version](https://img.shields.io/badge/version-0.9.4--beta-2EA88A?style=flat-square)](https://github.com/Cevzom/PitLaunch/releases)
-[![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white)](#install)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)
-[![updates](https://img.shields.io/badge/updates-delta%20~0.2%20MB-4C8DD9?style=flat-square)](#updates)
-[![admin](https://img.shields.io/badge/admin%20rights-not%20required-2EA88A?style=flat-square)](#install)
+[![Download](https://img.shields.io/badge/⬇_Download_for_Windows-2EA88A?style=for-the-badge&logoColor=white)](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)
 
-<img src="docs/images/setups.png" alt="PitLaunch setups view" width="820" />
+<sub>Windows 10 / 11 · no admin needed · updates itself</sub>
+
+<br><br>
+
+<img src="docs/images/setups.png" alt="PitLaunch" width="820" />
 
 </div>
 
----
-
-## The problem
-
-A sim rig and a desk rarely want the same thing. The rig wants its own screen, the wheel's
-audio, the game already running. The desk wants three monitors, headphones, and the windows
-where you left them. Doing that by hand means Display Settings, Sound Settings, and dragging
-windows around — every single time.
-
-PitLaunch does it in one action, and it captures the state from the machine instead of asking
-you to type in resolutions and device names.
+<br>
 
 ## What it does
 
-| | |
+Your rig and your desk want different screens, different sound, different windows.
+PitLaunch remembers both and moves the whole machine between them.
+
+|  |  |
 |---|---|
-| 🖥️ **Displays** | Full topology through the Windows CCD API — which screens are on, resolution, refresh rate, position, and which one is primary. |
-| 🔊 **Sound** | Playback, communications and microphone defaults, switched per setup and editable afterwards. |
-| 🪟 **Windows** | Remembers where your windows were and puts them back, learning as you leave each setup. |
-| 🚀 **Apps** | Starts what a setup needs and can close what it doesn't. |
-| 🎮 **Game detection** | Pick a game; launching it switches to that setup automatically, and quitting switches back. |
-| ⌨️ **Hotkeys** | A global shortcut per setup. Press the keys to record it, no syntax to memorise. |
-| 🛟 **Safety** | Every layout is validated with Windows before it is applied, with rollback if it is refused — plus `Ctrl+Alt+Shift+F12` to turn every connected monitor back on. |
+| 🖥️ **Screens** | Which monitors, what resolution, refresh rate and layout |
+| 🔊 **Sound** | Speakers, headset and mic, per setup |
+| 🪟 **Windows** | Puts your windows back where they were |
+| 🚀 **Apps** | Starts what you need, closes what you don't |
+| 🎮 **Games** | Picks your installed games automatically — launch one, it switches |
+| 🛞 **Hardware** | Tells you if the wheel or pedals aren't plugged in |
+| ☕ **Stay awake** | No screen blanking mid-stint |
+| ⌨️ **Hotkeys** | A shortcut per setup |
+
+<br>
 
 <div align="center">
-<img src="docs/images/settings.png" alt="PitLaunch settings" width="760" />
+<img src="docs/images/settings.png" alt="Settings" width="740" />
 </div>
 
-## Install
+<br>
 
-**[⬇ Download PitLaunch-win-Setup.exe](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)**
+## Getting started
 
-Run it. No administrator rights are needed; it installs for the current user and adds
-Start Menu and Desktop shortcuts. It installs quietly in a few seconds and opens itself —
-there is no setup wizard to click through.
+Run the installer — it takes a few seconds, then opens itself. No wizard.
 
-Every release lists a SHA256 for the installer. Since PitLaunch is not code-signed yet, you
-can check the file you downloaded matches:
+Click **Create setup**, pick your screens and sound, and save it. Do that once for the desk
+and once for the rig. Then switch from the app, the tray, a hotkey, or automatically when a
+game starts.
 
-```powershell
-Get-FileHash .\PitLaunch-win-Setup.exe -Algorithm SHA256
-```
+> **SmartScreen will warn you** the first time — PitLaunch isn't code-signed yet.
+> Choose *More info → Run anyway*. Every release lists a SHA256 so you can verify the file.
 
-There is also a portable build if you prefer a copy that touches nothing else on the machine —
-extract it anywhere and run `PitLaunch.exe`. The trade-off is updates: a portable copy has to
-be downloaded again in full each time.
+<br>
 
-> PitLaunch is not code-signed yet, so Windows SmartScreen shows a warning the first time.
-> Choose **More info → Run anyway**.
+## Why not something else
 
-## How it compares
+|  | PitLaunch | DisplayMagician | Sim launchers |
+|---|:---:|:---:|:---:|
+| Screens | ✅ | ✅ | — |
+| Sound | ✅ | ✅ | — |
+| Window positions | ✅ | — | — |
+| Launch apps | ✅ | partial | ✅ |
+| Checks with Windows first | ✅ | — | — |
+| Rolls back if it fails | ✅ | — | — |
 
-| | PitLaunch | DisplayMagician | SimLauncher-style launchers |
-|---|---|---|---|
-| Displays | ✅ full topology, validated | ✅ | ❌ |
-| Sound devices | ✅ playback, comms, mic | ✅ | ❌ |
-| Window positions | ✅ learned automatically | ❌ | ❌ |
-| Launch / close apps | ✅ | partial | ✅ |
-| Validates before applying | ✅ asks Windows first | ❌ | n/a |
-| Rollback on failure | ✅ | ❌ | n/a |
+Others do part of it. PitLaunch treats a setup as one thing — and asks Windows to validate
+a display layout *before* applying it, so a bad switch can't leave you on a black screen.
 
-**DisplayMagician** covers displays and audio well, but switching profiles is the part people
-report as unreliable, and it does not restore where your windows were.
-
-**App launchers** built for sim rigs start your game and its tools, which PitLaunch also does,
-but they leave the actual hardware — screens and sound — for you to sort out.
-
-The difference is that PitLaunch treats one setup as a single unit: screens, sound, windows and
-apps move together. And before it changes anything, it asks Windows to validate the exact
-display layout, rolling back if Windows refuses — which is what stops a bad switch leaving you
-staring at a black screen.
+<br>
 
 ## Updates
 
-Installed copies patch themselves. PitLaunch checks in the background, shows a quiet
-**Update available** marker in the sidebar, and downloads **only the files that changed** —
-typically around **0.2 MB instead of the 72 MB** a full download would cost.
+Installed copies patch themselves. An **Update available** marker appears in the sidebar and
+downloads only what changed — usually **under 1 MB** instead of 76 MB.
 
-Your setups live in `%APPDATA%\PitLaunch`, outside the install folder, so updating or
-uninstalling never touches them.
+Your setups live in `%APPDATA%\PitLaunch`, so updating never touches them.
+
+<br>
 
 ## Command line
 
-Drive PitLaunch from a Stream Deck, a wheel button, or a shortcut:
+For a Stream Deck, a wheel button, or a shortcut:
 
-```cmd
-PitLaunch.exe --profile "Sim Racing"    :: switch to a setup
-PitLaunch.exe --capture "Desk"          :: capture the current state as a setup
-PitLaunch.exe --chooser                 :: show the pick-a-setup screen
-PitLaunch.exe --background              :: start quietly in the tray
-PitLaunch.exe --restore-displays        :: emergency: enable every connected monitor
-PitLaunch.exe --exit
+```
+PitLaunch.exe --profile "Sim Racing"
+PitLaunch.exe --chooser
+PitLaunch.exe --restore-displays
 ```
 
-Only one copy runs; later launches hand their command to the running one.
+<br>
 
-## Documentation
+## More
 
-- **[User guide](docs/USER-GUIDE.md)** — full walkthrough, in English and Hebrew
-- **[Releasing](RELEASING.md)** — cutting a release and publishing updates
-- **[Product notes](PRODUCT.md)** · **[Design notes](DESIGN.md)**
+**[User guide](docs/USER-GUIDE.md)** · **[Releasing](RELEASING.md)** · **[Design notes](DESIGN.md)**
 
-## Status
+Public beta, used daily on a three-monitor desk and a single-screen rig.
+Found a bug? Send `%APPDATA%\PitLaunch\pitlaunch.log` and what you were doing.
 
-Public beta. It has been used daily on a three-monitor desk / single-screen rig, and ships a
-16-check self-test (`PitLaunch.exe --self-test`) covering display capture and restore
-validation, audio fallback, profile recovery, and startup registration.
+<br>
 
-Bug reports are welcome — please include `%APPDATA%\PitLaunch\pitlaunch.log` and say which
-monitor or audio device was involved.
+<div align="center">
+<sub>MIT licensed</sub>
+</div>

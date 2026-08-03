@@ -184,6 +184,35 @@
             </Setter>
         </Style>
 
+        <!-- Dashed "add something" tile, matching the empty-slot pattern people expect. -->
+        <Style x:Key="BrowseTileButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="Fill" CornerRadius="7" Background="{TemplateBinding Background}" />
+                            <Rectangle x:Name="Dashes" RadiusX="7" RadiusY="7" Fill="Transparent"
+                                       Stroke="{StaticResource BorderBrush}" StrokeThickness="1"
+                                       StrokeDashArray="4 3" SnapsToDevicePixels="True" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fill" Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+                                <Setter TargetName="Dashes" Property="Stroke" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Dashes" Property="Stroke" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Quiet "an update is waiting" affordance for the bottom of the sidebar. -->
         <Style x:Key="UpdateBannerButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
             <Setter Property="Height" Value="Auto" />
@@ -766,13 +795,13 @@
                                     <TextBlock Text="Activate this setup when a saved process starts." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Style="{StaticResource SecondaryButton}" Click="BrowseGameApplication_Click" Margin="0,0,8,0" AutomationProperties.Name="Choose game file"
-                                            ToolTip="Pick a game or application on disk. PitLaunch watches for it and switches to this setup when it starts.">
-                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8E5;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Choose game file" /></StackPanel>
+                                    <Button Style="{StaticResource SecondaryButton}" Click="AddGameProcess_Click" Margin="0,0,8,0" AutomationProperties.Name="Add running app"
+                                            ToolTip="Type a process name, or pick from the apps running right now.">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Manually" /></StackPanel>
                                     </Button>
-                                    <Button Style="{StaticResource SecondaryButton}" Click="AddGameProcess_Click" AutomationProperties.Name="Add running app"
-                                            ToolTip="Pick from the apps running right now, or type a process name.">
-                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Add running app" /></StackPanel>
+                                    <Button Style="{StaticResource PrimaryButton}" Click="AddGame_Click" AutomationProperties.Name="Add a game"
+                                            ToolTip="Pick from the games installed on this PC.">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons" FontSize="12" Margin="0,0,7,0" /><TextBlock Text="Add game" /></StackPanel>
                                     </Button>
                                 </StackPanel>
                             </Grid>
@@ -957,6 +986,53 @@
                         <Button x:Name="DialogConfirm" Style="{StaticResource PrimaryButton}" Content="Save" IsDefault="True" Click="DialogConfirm_Click" />
                     </StackPanel>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Pick a game from the installed library instead of typing a process name. -->
+        <Grid x:Name="GamePickerLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#D80E100F" MouseLeftButtonDown="GamePickerLayer_MouseLeftButtonDown">
+            <Border Width="470" MaxHeight="560" Padding="0" CornerRadius="10" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Add a game" FontSize="19" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,24,0,0" />
+
+                    <Grid x:Name="GamePickerScanning" Grid.Row="1" Margin="0,18,0,4" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Grid Width="17" Height="17" RenderTransformOrigin="0.5,0.5" Margin="0,0,10,0">
+                                <Grid.RenderTransform><RotateTransform x:Name="GamePickerSpinner" /></Grid.RenderTransform>
+                                <Ellipse Stroke="{StaticResource BorderBrush}" StrokeThickness="2" />
+                                <Path Data="M 8.5,1 A 7.5,7.5 0 0 1 16,8.5" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" StrokeStartLineCap="Round" />
+                            </Grid>
+                            <TextBlock Text="Scanning for games..." Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+
+                    <ScrollViewer x:Name="GamePickerScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="16,10,10,0" Visibility="Collapsed">
+                        <StackPanel x:Name="GamePickerList" Margin="0,0,6,0" />
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="3" Margin="16,14,16,18">
+                        <Button x:Name="GamePickerBrowse" Style="{StaticResource BrowseTileButton}" Click="GamePickerBrowse_Click" AutomationProperties.Name="Choose custom path">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="Choose custom path" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text="&#xE8DA;" FontFamily="Segoe Fluent Icons" FontSize="13" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="6" Padding="11,9" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons" FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="GamePickerHint" Text="Not seeing your game? Use Choose custom path." Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <Button Style="{StaticResource QuietButton}" Content="Cancel" HorizontalAlignment="Center" Margin="0,8,0,0" Click="GamePickerCancel_Click" />
+                    </StackPanel>
+                </Grid>
             </Border>
         </Grid>
 

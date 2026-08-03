@@ -86,6 +86,11 @@ $previousFull = @(Get-ChildItem -Path $ReleaseDir -Filter "*-full.nupkg" -ErrorA
 Write-Host "Existing full packages in feed: $($previousFull.Count)"
 
 $icon = Join-Path $Root "assets\pitlaunch-v3.ico"
+# The install itself is silent and takes seconds; the splash is the only thing telling the user
+# it worked, so it is not decoration.
+$splash = Join-Path $Root "assets\splash.png"
+if (!(Test-Path -LiteralPath $splash)) { throw "Splash image missing: $splash" }
+
 & $Vpk pack `
     --packId PitLaunch `
     --packVersion $PackVersion `
@@ -94,6 +99,8 @@ $icon = Join-Path $Root "assets\pitlaunch-v3.ico"
     --packAuthors "PitLaunch" `
     --mainExe "PitLaunch.exe" `
     --icon $icon `
+    --splashImage $splash `
+    --splashProgressColor "#2EA88A" `
     --channel $Channel `
     --outputDir $ReleaseDir
 if ($LASTEXITCODE -ne 0) { throw "Velopack pack failed with exit code $LASTEXITCODE" }

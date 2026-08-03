@@ -14,7 +14,7 @@ using Fluent = global::Wpf.Ui.Controls;
 public partial class PitLaunchView : Controls.UserControl
 {
     private enum AppPage { Home, Profile, Settings }
-    private enum DialogMode { None, Text, Confirm, SetupGuide }
+    private enum DialogMode { None, Text, Confirm, SetupGuide, GamePicker }
 
     private readonly ProfileCoordinator _coordinator;
     private readonly MainForm _owner;
@@ -2312,6 +2312,187 @@ public partial class PitLaunchView : Controls.UserControl
     {
         AddGameEditor("");
         if (GamesPanel.Children[^1] is Controls.Border { Tag: GameEditorState state }) state.Process.Focus();
+    }
+
+    /// <summary>Opens the installed-game picker. Scanning runs off the UI thread so the dialog appears instantly.</summary>
+    private async void AddGame_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (_dialogMode != DialogMode.None) return;
+        _dialogMode = DialogMode.GamePicker;
+
+        GamePickerList.Children.Clear();
+        GamePickerScroll.Visibility = Wpf.Visibility.Collapsed;
+        GamePickerScanning.Visibility = Wpf.Visibility.Visible;
+        GamePickerHint.Text = "Not seeing your game? Use Choose custom path.";
+        GamePickerLayer.Visibility = Wpf.Visibility.Visible;
+        GamePickerLayer.BeginAnimation(OpacityProperty, DoubleAnimationTo(1, 150));
+
+        Animation.DoubleAnimation spin = new(0, 360, TimeSpan.FromMilliseconds(900))
+        {
+            RepeatBehavior = Animation.RepeatBehavior.Forever
+        };
+        GamePickerSpinner.BeginAnimation(Media.RotateTransform.AngleProperty, spin);
+
+        List<GameEntry> games = [];
+        try
+        {
+            games = await Task.Run(() => new GameLibraryService().Scan());
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Game scan failed: " + ex.Message);
+        }
+
+        if (_dialogMode != DialogMode.GamePicker) return;
+        GamePickerSpinner.BeginAnimation(Media.RotateTransform.AngleProperty, null);
+        GamePickerScanning.Visibility = Wpf.Visibility.Collapsed;
+
+        HashSet<string> already = GamesPanel.Children.OfType<Controls.Border>()
+            .Select(row => (row.Tag as GameEditorState)?.Process.Text.Trim() ?? string.Empty)
+            .Where(value => value.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (games.Count == 0)
+        {
+            GamePickerHint.Text = "No installed games found. Use Choose custom path to pick the game's .exe yourself.";
+        }
+        else
+        {
+            foreach (GameEntry game in games) GamePickerList.Children.Add(CreateGameRow(game, already));
+            GamePickerScroll.Visibility = Wpf.Visibility.Visible;
+        }
+    }
+
+    private Controls.Border CreateGameRow(GameEntry game, HashSet<string> alreadyAdded)
+    {
+        bool added = alreadyAdded.Contains(game.ProcessName);
+        Media.SolidColorBrush background = NewBrush("#171D1B");
+        Controls.Border row = new()
+        {
+            CornerRadius = new Wpf.CornerRadius(8),
+            Background = background,
+            Padding = new Wpf.Thickness(11, 9, 11, 9),
+            Margin = new Wpf.Thickness(0, 0, 0, 7)
+        };
+
+        Controls.Grid layout = new();
+        layout.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(46) });
+        layout.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        layout.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = Wpf.GridLength.Auto });
+
+        Controls.Border iconHost = new()
+        {
+            Width = 36,
+            Height = 36,
+            CornerRadius = new Wpf.CornerRadius(6),
+            Background = Brush("SurfaceRaisedBrush"),
+            VerticalAlignment = Wpf.VerticalAlignment.Center,
+            ClipToBounds = true
+        };
+        Media.ImageSource? icon = TryGetExecutableIcon(game.ExecutablePath);
+        if (icon is not null)
+        {
+            iconHost.Child = new Controls.Image { Source = icon, Width = 30, Height = 30 };
+        }
+        else
+        {
+            Controls.TextBlock initial = Text(game.Name[..1].ToUpperInvariant(), 15, Brush("MutedBrush"), Wpf.FontWeights.SemiBold);
+            initial.HorizontalAlignment = Wpf.HorizontalAlignment.Center;
+            initial.VerticalAlignment = Wpf.VerticalAlignment.Center;
+            iconHost.Child = initial;
+        }
+        layout.Children.Add(iconHost);
+
+        Controls.StackPanel copy = new() { VerticalAlignment = Wpf.VerticalAlignment.Center, Margin = new Wpf.Thickness(0, 0, 8, 0) };
+        Controls.StackPanel titleRow = new() { Orientation = Controls.Orientation.Horizontal };
+        Controls.TextBlock name = Text(game.Name, 13.5, Brush("TextBrush"), Wpf.FontWeights.SemiBold);
+        name.TextTrimming = Wpf.TextTrimming.CharacterEllipsis;
+        titleRow.Children.Add(name);
+        if (game.IsSimRacing)
+        {
+            Controls.Border tag = CreateBadge("SIM", "AccentBrush", "AccentSoftBrush");
+            tag.Margin = new Wpf.Thickness(7, 0, 0, 0);
+            titleRow.Children.Add(tag);
+        }
+        copy.Children.Add(titleRow);
+        Controls.TextBlock path = Text(game.ExecutablePath, 11, Brush("MutedBrush"));
+        path.TextTrimming = Wpf.TextTrimming.CharacterEllipsis;
+        path.Margin = new Wpf.Thickness(0, 2, 0, 0);
+        path.ToolTip = game.ExecutablePath;
+        copy.Children.Add(path);
+        Controls.Grid.SetColumn(copy, 1);
+        layout.Children.Add(copy);
+
+        Controls.Button add = new()
+        {
+            Style = GetStyle(added ? "SecondaryButton" : "PrimaryButton"),
+            Content = added ? "Added" : "+",
+            Width = added ? 68 : 34,
+            Height = 34,
+            IsEnabled = !added,
+            VerticalAlignment = Wpf.VerticalAlignment.Center
+        };
+        Wpf.Automation.AutomationProperties.SetName(add, "Add " + game.Name);
+        add.Click += (_, _) =>
+        {
+            AddGameEditor(game.ProcessName);
+            add.Content = "Added";
+            add.Width = 68;
+            add.IsEnabled = false;
+            add.Style = GetStyle("SecondaryButton");
+            ShowToast("Game added", $"Save automation to switch to this setup when {game.Name} starts.", "AccentBrush");
+        };
+        Controls.Grid.SetColumn(add, 2);
+        layout.Children.Add(add);
+
+        row.Child = layout;
+        row.MouseEnter += (_, _) => background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
+            new Animation.ColorAnimation(Media.Color.FromRgb(35, 45, 41), TimeSpan.FromMilliseconds(130)));
+        row.MouseLeave += (_, _) => background.BeginAnimation(Media.SolidColorBrush.ColorProperty,
+            new Animation.ColorAnimation(Media.Color.FromRgb(23, 29, 27), TimeSpan.FromMilliseconds(150)));
+        return row;
+    }
+
+    /// <summary>Pulls the game's own icon out of its executable so the list is recognisable at a glance.</summary>
+    private static Media.ImageSource? TryGetExecutableIcon(string executablePath)
+    {
+        try
+        {
+            using System.Drawing.Icon? icon = System.Drawing.Icon.ExtractAssociatedIcon(executablePath);
+            if (icon is null) return null;
+            Media.Imaging.BitmapSource source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
+                icon.Handle,
+                Wpf.Int32Rect.Empty,
+                Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+            source.Freeze();
+            return source;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void GamePickerBrowse_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        CloseGamePicker();
+        BrowseGameApplication_Click(sender, e);
+    }
+
+    private void GamePickerCancel_Click(object sender, Wpf.RoutedEventArgs e) => CloseGamePicker();
+
+    private void GamePickerLayer_MouseLeftButtonDown(object sender, Input.MouseButtonEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, GamePickerLayer)) CloseGamePicker();
+    }
+
+    private void CloseGamePicker()
+    {
+        if (_dialogMode == DialogMode.GamePicker) _dialogMode = DialogMode.None;
+        GamePickerSpinner.BeginAnimation(Media.RotateTransform.AngleProperty, null);
+        Animation.DoubleAnimation fade = DoubleAnimationTo(0, 130);
+        fade.Completed += (_, _) => GamePickerLayer.Visibility = Wpf.Visibility.Collapsed;
+        GamePickerLayer.BeginAnimation(OpacityProperty, fade);
     }
 
     private void BrowseGameApplication_Click(object sender, Wpf.RoutedEventArgs e)
