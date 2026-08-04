@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -10,10 +10,10 @@
     <ApplicationManifest>app\app.manifest</ApplicationManifest>
     <AssemblyName>PitLaunch</AssemblyName>
     <RootNamespace>PitLaunch</RootNamespace>
-    <Version>0.9.6-beta.1</Version>
-    <AssemblyVersion>0.9.6.0</AssemblyVersion>
-    <FileVersion>0.9.6.0</FileVersion>
-    <InformationalVersion>0.9.6-beta.1</InformationalVersion>
+    <Version>0.9.7-beta.1</Version>
+    <AssemblyVersion>0.9.7.0</AssemblyVersion>
+    <FileVersion>0.9.7.0</FileVersion>
+    <InformationalVersion>0.9.7-beta.1</InformationalVersion>
     <Product>PitLaunch Beta</Product>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
