@@ -10,10 +10,10 @@
     <ApplicationManifest>app\app.manifest</ApplicationManifest>
     <AssemblyName>PitLaunch</AssemblyName>
     <RootNamespace>PitLaunch</RootNamespace>
-    <Version>0.9.7-beta.1</Version>
-    <AssemblyVersion>0.9.7.0</AssemblyVersion>
-    <FileVersion>0.9.7.0</FileVersion>
-    <InformationalVersion>0.9.7-beta.1</InformationalVersion>
+    <Version>0.9.8-beta.1</Version>
+    <AssemblyVersion>0.9.8.0</AssemblyVersion>
+    <FileVersion>0.9.8.0</FileVersion>
+    <InformationalVersion>0.9.8-beta.1</InformationalVersion>
     <Product>PitLaunch Beta</Product>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
@@ -25,12 +25,20 @@
     <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>embedded</DebugType>
+    <!-- A DPI-unaware process gets bitmap-stretched by Windows above 100% scaling, which
+         softens text and the logo. WinForms rejects declaring this in app.manifest
+         (WFAC010) and requires the project property instead. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="app\**\*.cs" />
     <Page Include="app\PitLaunchView.xaml" />
     <Resource Include="assets\pitlaunch-mark.png" />
+    <!-- Cabin + Space Grotesk, SIL Open Font License (licences sit beside the files).
+         Static weight instances cut from the Google variable fonts: WPF ignores variable
+         axes, so a VF would render Regular and fake every other weight. -->
+    <Resource Include="assets\fonts\*.ttf" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>

@@ -44,6 +44,7 @@ public partial class PitLaunchView : Controls.UserControl
         InitializeComponent();
         _coordinator = coordinator;
         _owner = owner;
+        StatusBarVersion.Text = AppInfo.Version;
 
         Loaded += (_, _) =>
         {
@@ -694,13 +695,17 @@ public partial class PitLaunchView : Controls.UserControl
 
     private void ApplyStartupChooserState()
     {
-        SidebarColumn.Width = _startupChooser ? new Wpf.GridLength(0) : new Wpf.GridLength(216);
+        SidebarColumn.Width = _startupChooser ? new Wpf.GridLength(0) : new Wpf.GridLength(240);
         SidebarHost.Visibility = _startupChooser ? Wpf.Visibility.Collapsed : Wpf.Visibility.Visible;
-        StatsGrid.Visibility = _startupChooser ? Wpf.Visibility.Collapsed : Wpf.Visibility.Visible;
+        StatsSection.Visibility = _startupChooser ? Wpf.Visibility.Collapsed : Wpf.Visibility.Visible;
         CaptureButton.Visibility = _startupChooser ? Wpf.Visibility.Collapsed : Wpf.Visibility.Visible;
         StartupEyebrow.Visibility = _startupChooser ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
-        HomeTitle.Text = _startupChooser ? "How are you using this PC today?" : "Setups";
-        HomeTitle.FontSize = _startupChooser ? 32 : 28;
+        TitleRailColumn.Width = _startupChooser ? new Wpf.GridLength(0) : new Wpf.GridLength(240);
+        // The chooser asks a question, so it drops the "PitLaunch <page>" lead-in and reads as one sentence.
+        HomeTitleLead.Text = _startupChooser ? string.Empty : "PitLaunch ";
+        HomeTitleAccent.Text = _startupChooser ? "How are you using this PC today?" : "Setups";
+        HomeTitleAccent.Foreground = _startupChooser ? Brush("TextBrush") : Brush("AccentBrush");
+        HomeTitle.FontSize = _startupChooser ? 34 : 38;
         HomeSubtitle.Text = _startupChooser
             ? "Choose a setup and PitLaunch will restore its screens, sound, windows, and apps."
             : "Switch the whole PC between your desk and rig in one move.";
@@ -710,8 +715,8 @@ public partial class PitLaunchView : Controls.UserControl
             ? "Open PitLaunch after sign-in and create a Desk or Sim racing setup first."
             : "Start with Desk. When the rig is connected, create a second Sim racing setup.";
         HomePage.Margin = _startupChooser
-            ? new Wpf.Thickness(52, 34, 52, 34)
-            : new Wpf.Thickness(44, 30, 44, 34);
+            ? new Wpf.Thickness(52, 34, 52, 14)
+            : new Wpf.Thickness(44, 30, 44, 14);
         FadeIn(HomePage);
     }
 
@@ -1945,24 +1950,21 @@ public partial class PitLaunchView : Controls.UserControl
         bool settings = _page == AppPage.Settings;
         SetupsNav.Foreground = settings ? Brush("MutedBrush") : Brush("AccentBrush");
         SettingsNav.Foreground = settings ? Brush("AccentBrush") : Brush("MutedBrush");
-        AnimateNavigationIndicator(settings ? 46 : 0);
+        AnimateNavigationIndicator(settings ? 38 : 0);
     }
 
     private void AnimateNavigationIndicator(double targetY)
     {
-        Media.TranslateTransform background = EnsureTranslate(NavActiveBackground);
         Media.TranslateTransform pill = EnsureTranslate(NavActivePill);
         if (!_navIndicatorInitialized || !IsLoaded)
         {
-            background.BeginAnimation(Media.TranslateTransform.YProperty, null);
             pill.BeginAnimation(Media.TranslateTransform.YProperty, null);
-            background.Y = targetY;
             pill.Y = targetY;
             _navIndicatorInitialized = true;
             return;
         }
 
-        double direction = Math.Sign(targetY - background.Y);
+        double direction = Math.Sign(targetY - pill.Y);
         Animation.DoubleAnimationUsingKeyFrames animation = new()
         {
             Duration = TimeSpan.FromMilliseconds(360)
@@ -1975,8 +1977,7 @@ public partial class PitLaunchView : Controls.UserControl
             targetY,
             Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(360)),
             new Animation.QuadraticEase { EasingMode = Animation.EasingMode.EaseOut }));
-        background.BeginAnimation(Media.TranslateTransform.YProperty, animation);
-        pill.BeginAnimation(Media.TranslateTransform.YProperty, animation.Clone());
+        pill.BeginAnimation(Media.TranslateTransform.YProperty, animation);
     }
 
     private void Navigate(AppPage target)
@@ -2012,7 +2013,8 @@ public partial class PitLaunchView : Controls.UserControl
         SwapProfilePanel(AutomationPanel, SnapshotPanel);
         SnapshotIndicator.Visibility = Wpf.Visibility.Visible;
         AutomationIndicator.Visibility = Wpf.Visibility.Collapsed;
-        SnapshotTab.Foreground = Brush("TextBrush");
+        // Active pill is accent-filled, so its label needs the dark ink to stay legible.
+        SnapshotTab.Foreground = Brush("AccentInkBrush");
         AutomationTab.Foreground = Brush("MutedBrush");
     }
 
@@ -2022,7 +2024,7 @@ public partial class PitLaunchView : Controls.UserControl
         SnapshotIndicator.Visibility = Wpf.Visibility.Collapsed;
         AutomationIndicator.Visibility = Wpf.Visibility.Visible;
         SnapshotTab.Foreground = Brush("MutedBrush");
-        AutomationTab.Foreground = Brush("TextBrush");
+        AutomationTab.Foreground = Brush("AccentInkBrush");
     }
 
     private static void SwapProfilePanel(Wpf.FrameworkElement outgoing, Wpf.FrameworkElement incoming)
@@ -2853,6 +2855,19 @@ public partial class PitLaunchView : Controls.UserControl
             ?? throw new InvalidOperationException("Windows could not open the startup task helper.");
         await process.WaitForExitAsync();
         return process.ExitCode;
+    }
+
+    private void StatusBarRepoLink_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        try
+        {
+            using Process? process = Process.Start(new ProcessStartInfo
+            {
+                FileName = AppInfo.UpdateFeedUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
     }
 
     private void OpenData_Click(object sender, Wpf.RoutedEventArgs e) => OpenPath(AppPaths.DataDirectory);
