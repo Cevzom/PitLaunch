@@ -26,3 +26,7 @@ assets/*
 !assets/pitlaunch-mark.png
 !assets/pitlaunch-v4.ico
 !assets/splash.png
+# The embedded UI fonts are build inputs, so they must be tracked or the app falls back to
+# a system font on any other machine. "assets/*" above hides them without this exception.
+!assets/fonts/
+!assets/fonts/**
