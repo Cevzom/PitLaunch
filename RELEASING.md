@@ -93,9 +93,23 @@ bots too. Nothing is sent from anyone's machine to produce these numbers.
 
 ## Verified
 
-Built 0.9.1, installed it, built 0.9.2, and updated through the app's own UI: the update
-downloaded a **234 KB delta instead of the 72 MB full package** (5 of 468 files changed)
-and restarted running 0.9.2. Uninstall removed the shortcuts and registry entries.
+Most recently for **0.9.8-beta.1**, against the real public feed rather than a local folder:
+an existing **0.9.7** install found the release on its own within seconds, showed the sidebar
+**Update available** marker, and patched with a **550 KB delta instead of the 77 MB installer**
+(5 of 468 files changed) before restarting into 0.9.8.
+
+Earlier, for 0.9.2: built 0.9.1, installed it, built 0.9.2, and updated through the app's own
+UI — a **234 KB delta**, then restarted running 0.9.2. Uninstall removed the shortcuts and
+registry entries.
+
+### Two things to get right when packing
+
+- **Commit before you pack.** A self-contained publish embeds the current commit in
+  `InformationalVersion`; packing first means the shipped build reports the *previous* commit.
+- **Check new assets are not ignored.** `.gitignore` is a whitelist, so a new folder under
+  `assets\` is excluded by default and `git status` stays silent about it. Confirm with
+  `git check-ignore -v <path>` — the embedded fonts were nearly shipped missing this way, which
+  would have made the app fall back to a system font on every other machine.
 
 ## Notes
 
