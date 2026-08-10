@@ -313,6 +313,40 @@ internal static class SelfTest
             }
         });
 
+        Check("switch confirmation policy", () =>
+        {
+            // Manual switches must ask. The tray counts as manual: ActivateProfileAsync shows the
+            // window before prompting, so the dialog is always reachable.
+            foreach (ActivationSource manual in new[] { ActivationSource.User, ActivationSource.Tray })
+            {
+                if (!PitLaunchView.ShouldConfirmSwitch(true, false, manual))
+                    throw new InvalidOperationException($"A {manual} switch would skip the confirmation dialog.");
+            }
+
+            // Everything else must apply silently. A prompt raised over a fullscreen game is
+            // unreachable, and the switch would then never happen at all.
+            foreach (ActivationSource automatic in new[]
+                     {
+                         ActivationSource.GameDetected,
+                         ActivationSource.GameExited,
+                         ActivationSource.Hotkey,
+                         ActivationSource.CommandLine
+                     })
+            {
+                if (PitLaunchView.ShouldConfirmSwitch(true, false, automatic))
+                    throw new InvalidOperationException($"A {automatic} switch would raise a confirmation dialog.");
+            }
+
+            // The setting off, or a caller that already asked, silences every source.
+            foreach (ActivationSource source in Enum.GetValues<ActivationSource>())
+            {
+                if (PitLaunchView.ShouldConfirmSwitch(false, false, source))
+                    throw new InvalidOperationException($"Confirmation is off but a {source} switch would still prompt.");
+                if (PitLaunchView.ShouldConfirmSwitch(true, true, source))
+                    throw new InvalidOperationException($"A bypassed {source} switch would still prompt.");
+            }
+        });
+
         Check("profile backup recovery", () =>
         {
             string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-self-test-" + Guid.NewGuid().ToString("N"));

@@ -627,14 +627,22 @@ public partial class PitLaunchView : Controls.UserControl
     // a game-detected switch would pop PitLaunch over a fullscreen game, where the prompt is
     // unreachable and the switch silently never happens. Hotkey and command line presses are
     // already a deliberate act, so a second confirmation only defeats them.
-    private static bool RequiresConfirmation(ActivationSource source) =>
+    internal static bool RequiresConfirmation(ActivationSource source) =>
         source is ActivationSource.User or ActivationSource.Tray;
+
+    /// <summary>
+    /// The whole confirm decision in one place: the user's setting, the per-call bypass used by
+    /// flows that already asked, and the source policy above. Kept static so the self test can
+    /// check every source without standing up a window.
+    /// </summary>
+    internal static bool ShouldConfirmSwitch(bool confirmBeforeSwitch, bool bypassConfirm, ActivationSource source) =>
+        confirmBeforeSwitch && !bypassConfirm && RequiresConfirmation(source);
 
     internal async Task ActivateProfileAsync(Guid profileId, ActivationSource source, bool bypassConfirm = false)
     {
         Profile? target = _coordinator.Document.Profiles.FirstOrDefault(profile => profile.Id == profileId);
         if (target is null) return;
-        if (_coordinator.Document.Settings.ConfirmBeforeSwitch && !bypassConfirm && RequiresConfirmation(source))
+        if (ShouldConfirmSwitch(_coordinator.Document.Settings.ConfirmBeforeSwitch, bypassConfirm, source))
         {
             if (_dialogMode != DialogMode.None)
             {
