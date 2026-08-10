@@ -1199,7 +1199,12 @@
                                         <Border Grid.Column="2" Height="198" CornerRadius="7" Background="{StaticResource ChromeBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12">
                                             <Grid>
                                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                                <TextBlock Text="LIVE LAYOUT" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" />
+                                                <Grid>
+                                                    <TextBlock Text="LIVE LAYOUT" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                                                    <Button x:Name="SetupGuideExpandButton" Style="{StaticResource IconButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Width="32" Height="28" Padding="0" MinHeight="0" Click="SetupGuideExpand_Click" ToolTip="Arrange the screens on a bigger canvas" AutomationProperties.Name="Enlarge the display arrangement">
+                                                        <ui:SymbolIcon x:Name="SetupGuideExpandIcon" Symbol="FullScreenMaximize24" FontSize="17" Foreground="{StaticResource AccentBrush}" />
+                                                    </Button>
+                                                </Grid>
                                                 <ContentControl x:Name="SetupGuidePreviewHost" Grid.Row="1" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
                                                 <TextBlock x:Name="SetupGuidePreviewSummary" Grid.Row="2" Style="{StaticResource CaptionText}" FontSize="12" TextAlignment="Center" TextWrapping="Wrap" />
                                             </Grid>

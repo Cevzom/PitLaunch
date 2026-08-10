@@ -36,6 +36,25 @@ public partial class PitLaunchView : Controls.UserControl
     private readonly HashSet<string> _setupSelectedDisplays = new(StringComparer.OrdinalIgnoreCase);
     private string? _setupPrimaryDisplayPath;
     private SetupGuideIdentity? _setupGuideIdentity;
+    private readonly Dictionary<string, MonitorPosition> _setupCustomPositions = new(StringComparer.OrdinalIgnoreCase);
+    // The transform the live layout was last drawn with, so a dragged rectangle can be read
+    // back into display coordinates without re-deriving the bounds mid-drag.
+    private double _previewScale = 1;
+    private double _previewOffsetX;
+    private double _previewOffsetY;
+    private double _previewMinX;
+    private double _previewMinY;
+    private Controls.Border? _arrangeOverlay;
+    private Controls.Border? _arrangeCanvasHost;
+    // Where each screen sat in the last interactive render, so a recomputed layout can glide
+    // into place instead of teleporting. Keyed per canvas width: the compact panel and the
+    // enlarged overlay are different coordinate spaces and must not animate across each other.
+    private readonly Dictionary<string, Wpf.Point> _lastArrangementPixels = new(StringComparer.OrdinalIgnoreCase);
+    private double _lastArrangementCanvasWidth;
+    private Controls.Border? _draggingMonitor;
+    private Wpf.Point _dragOrigin;
+    private double _dragOriginLeft;
+    private double _dragOriginTop;
     private readonly UpdateService _updates = new();
     private Velopack.UpdateInfo? _pendingUpdate;
 
@@ -243,11 +262,14 @@ public partial class PitLaunchView : Controls.UserControl
 
             SelectRecommendedDisplays(setup);
             RenderSetupDisplayChoices();
+            RemoveArrangementOverlay();
+            _setupCustomPositions.Clear();
             SetupGuideLayoutPicker.ItemsSource = new List<DisplayLayoutOption>
             {
                 new(DisplayLayoutMode.Recommended, "Recommended"),
                 new(DisplayLayoutMode.Horizontal, "Line up horizontally"),
-                new(DisplayLayoutMode.KeepCurrent, "Keep current positions")
+                new(DisplayLayoutMode.KeepCurrent, "Keep current positions"),
+                new(DisplayLayoutMode.Custom, "Custom - drag the preview")
             };
             SetupGuideLayoutPicker.SelectedIndex = 0;
             UpdateSetupMainPicker();
@@ -455,8 +477,17 @@ public partial class PitLaunchView : Controls.UserControl
         UpdateSetupPreview();
     }
 
-    private void SetupGuideLayoutPicker_SelectionChanged(object sender, Controls.SelectionChangedEventArgs e) =>
+    private void SetupGuideLayoutPicker_SelectionChanged(object sender, Controls.SelectionChangedEventArgs e)
+    {
+        // Choosing a computed arrangement discards hand placement, which is the only way back
+        // from a custom layout the user no longer wants.
+        if (SetupGuideLayoutPicker.SelectedItem is DisplayLayoutOption option &&
+            option.Value != DisplayLayoutMode.Custom)
+        {
+            _setupCustomPositions.Clear();
+        }
         UpdateSetupPreview();
+    }
 
     private void PopulateSetupAudioPickers(SetupGuideIdentity setup)
     {
@@ -501,7 +532,11 @@ public partial class PitLaunchView : Controls.UserControl
             .Where(device => _setupSelectedDisplays.Contains(device.DevicePath))
             .Select(device => device.DevicePath)
             .ToList();
-        return new DisplaySetupRequest(ordered, _setupPrimaryDisplayPath, layout);
+        return new DisplaySetupRequest(
+            ordered,
+            _setupPrimaryDisplayPath,
+            layout,
+            layout == DisplayLayoutMode.Custom ? _setupCustomPositions : null);
     }
 
     private void UpdateSetupPreview()
@@ -510,13 +545,31 @@ public partial class PitLaunchView : Controls.UserControl
         try
         {
             DisplaySnapshot snapshot = _coordinator.BuildDisplaySnapshot(CurrentSetupDisplayRequest());
-            Controls.Canvas preview = CreateMiniDisplayPreview(new Profile { Display = snapshot });
-            preview.Opacity = 0;
-            preview.BeginAnimation(OpacityProperty, StrongDoubleAnimationTo(1, 260));
+            // Only one canvas is interactive at a time: whichever renders last owns the
+            // pixel-to-display transform that a drag reads back through.
+            Controls.Canvas preview = CreateMiniDisplayPreview(
+                new Profile { Display = snapshot }, interactive: _arrangeOverlay is null);
+            // A drag must not fade the rectangle the pointer just released, so only animate the
+            // first render of a given arrangement.
+            if (_setupCustomPositions.Count == 0)
+            {
+                preview.Opacity = 0;
+                preview.BeginAnimation(OpacityProperty, StrongDoubleAnimationTo(1, 260));
+            }
             SetupGuidePreviewHost.Content = preview;
             MonitorSnapshot main = snapshot.Monitors.First(monitor => monitor.Enabled && monitor.Primary);
             int count = snapshot.Monitors.Count(monitor => monitor.Enabled);
-            SetupGuidePreviewSummary.Text = $"{count} screen{(count == 1 ? string.Empty : "s")}  |  {main.FriendlyName} main";
+            string hint = count > 1 ? "  |  drag to place" : string.Empty;
+            SetupGuidePreviewSummary.Text = $"{count} screen{(count == 1 ? string.Empty : "s")}  |  {main.FriendlyName} main{hint}";
+            // Never disable the toggle while the overlay is open, or the only way out would be
+            // the Done button.
+            if (SetupGuideExpandButton is not null)
+                SetupGuideExpandButton.IsEnabled = count > 1 || _arrangeOverlay is not null;
+            if (_arrangeCanvasHost is not null)
+            {
+                _arrangeCanvasHost.Child = CreateMiniDisplayPreview(
+                    new Profile { Display = snapshot }, interactive: true, canvasWidth: 604, canvasHeight: 348);
+            }
             SetupGuideValidationStrip.Background = Brush("InfoSoftBrush");
             SetupGuideValidationStrip.BorderBrush = NewBrush("#453A78");
             SetupGuideValidationText.Text = "Ready. PitLaunch will ask Windows to validate this exact plan before it saves or switches.";
@@ -620,7 +673,11 @@ public partial class PitLaunchView : Controls.UserControl
 
     private void SetupGuideLayer_MouseLeftButtonDown(object sender, Input.MouseButtonEventArgs e)
     {
-        if (ReferenceEquals(e.OriginalSource, SetupGuideLayer)) CompleteSetupGuide(null);
+        if (!ReferenceEquals(e.OriginalSource, SetupGuideLayer)) return;
+        // Same one-layer-at-a-time rule as Escape: clicking beside the arrangement panel closes
+        // it, not the half-built setup behind it.
+        if (_arrangeOverlay is not null) CloseArrangementOverlay();
+        else CompleteSetupGuide(null);
     }
 
     // A switch the user did not start from inside the window must never raise a modal dialog:
@@ -1214,9 +1271,18 @@ public partial class PitLaunchView : Controls.UserControl
         };
     }
 
-    private Controls.Canvas CreateMiniDisplayPreview(Profile profile)
+    private Controls.Canvas CreateMiniDisplayPreview(
+        Profile profile,
+        bool interactive = false,
+        double canvasWidth = 220,
+        double canvasHeight = 136)
     {
-        Controls.Canvas canvas = new() { Width = 220, Height = 136 };
+        Controls.Canvas canvas = new() { Width = canvasWidth, Height = canvasHeight };
+        if (interactive) canvas.Background = Media.Brushes.Transparent;
+        double frameWidth = canvasWidth - 26;
+        double frameHeight = canvasHeight - 44;
+        bool sameSpaceAsLastRender = interactive && Math.Abs(_lastArrangementCanvasWidth - canvasWidth) < 0.5;
+        Dictionary<string, Wpf.Point> nextPixels = new(StringComparer.OrdinalIgnoreCase);
         List<MonitorSnapshot> enabled = profile.Display.Monitors.Where(monitor => monitor.Enabled).ToList();
         if (enabled.Count > 0)
         {
@@ -1226,19 +1292,30 @@ public partial class PitLaunchView : Controls.UserControl
             double maxY = enabled.Max(monitor => monitor.Y + monitor.Height);
             double worldWidth = Math.Max(1, maxX - minX);
             double worldHeight = Math.Max(1, maxY - minY);
-            double scale = Math.Min(194 / worldWidth, 92 / worldHeight);
+            double scale = Math.Min(frameWidth / worldWidth, frameHeight / worldHeight);
             double contentWidth = worldWidth * scale;
             double contentHeight = worldHeight * scale;
-            double offsetX = (220 - contentWidth) / 2;
-            double offsetY = 12 + (92 - contentHeight) / 2;
+            double offsetX = (canvasWidth - contentWidth) / 2;
+            double offsetY = 12 + (frameHeight - contentHeight) / 2;
+            if (interactive)
+            {
+                _previewScale = scale;
+                _previewOffsetX = offsetX;
+                _previewOffsetY = offsetY;
+                _previewMinX = minX;
+                _previewMinY = minY;
+            }
 
             for (int index = 0; index < enabled.Count; index++)
             {
                 MonitorSnapshot monitor = enabled[index];
                 Controls.Border display = new()
                 {
-                    Width = Math.Max(34, monitor.Width * scale),
-                    Height = Math.Max(23, monitor.Height * scale),
+                    // Read-only cards floor the size so a small screen stays visible. An
+                    // interactive canvas must not: a rectangle drawn larger than it really is
+                    // would refuse to sit beside its neighbour.
+                    Width = interactive ? monitor.Width * scale : Math.Max(34, monitor.Width * scale),
+                    Height = interactive ? monitor.Height * scale : Math.Max(23, monitor.Height * scale),
                     CornerRadius = new Wpf.CornerRadius(4),
                     Background = monitor.Primary ? Brush("AccentSoftBrush") : Brush("SurfaceRaisedBrush"),
                     BorderBrush = monitor.Primary ? Brush("AccentBrush") : Brush("BorderBrush"),
@@ -1249,8 +1326,25 @@ public partial class PitLaunchView : Controls.UserControl
                 number.HorizontalAlignment = Wpf.HorizontalAlignment.Center;
                 number.VerticalAlignment = Wpf.VerticalAlignment.Center;
                 display.Child = number;
-                Controls.Canvas.SetLeft(display, offsetX + (monitor.X - minX) * scale);
-                Controls.Canvas.SetTop(display, offsetY + (monitor.Y - minY) * scale);
+                double targetLeft = offsetX + (monitor.X - minX) * scale;
+                double targetTop = offsetY + (monitor.Y - minY) * scale;
+                Controls.Canvas.SetLeft(display, targetLeft);
+                Controls.Canvas.SetTop(display, targetTop);
+                if (interactive && enabled.Count > 1)
+                {
+                    display.Tag = monitor.DevicePath;
+                    display.Cursor = Input.Cursors.SizeAll;
+                    display.ToolTip = $"Drag to place {monitor.FriendlyName}";
+                    AttachMonitorDrag(canvas, display);
+                    AttachMonitorHover(display);
+                    if (sameSpaceAsLastRender &&
+                        _lastArrangementPixels.TryGetValue(monitor.DevicePath, out Wpf.Point previous) &&
+                        (Math.Abs(previous.X - targetLeft) > 0.5 || Math.Abs(previous.Y - targetTop) > 0.5))
+                    {
+                        GlideTo(display, previous, targetLeft, targetTop);
+                    }
+                    nextPixels[monitor.DevicePath] = new Wpf.Point(targetLeft, targetTop);
+                }
                 canvas.Children.Add(display);
             }
         }
@@ -1281,7 +1375,336 @@ public partial class PitLaunchView : Controls.UserControl
             Controls.Canvas.SetTop(empty, 58);
             canvas.Children.Add(empty);
         }
+
+        if (interactive)
+        {
+            _lastArrangementCanvasWidth = canvasWidth;
+            _lastArrangementPixels.Clear();
+            foreach (KeyValuePair<string, Wpf.Point> entry in nextPixels) _lastArrangementPixels[entry.Key] = entry.Value;
+        }
         return canvas;
+    }
+
+    /// <summary>Runs a rectangle from where it used to be to where it now belongs.</summary>
+    private static void GlideTo(Controls.Border display, Wpf.Point from, double toLeft, double toTop)
+    {
+        // FillBehavior.Stop with the destination already set means the animation hands control
+        // back cleanly, so a later drag reads the real position rather than a held animated one.
+        display.BeginAnimation(Controls.Canvas.LeftProperty, new Animation.DoubleAnimation
+        {
+            From = from.X,
+            To = toLeft,
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = new Animation.QuinticEase { EasingMode = Animation.EasingMode.EaseOut },
+            FillBehavior = Animation.FillBehavior.Stop
+        });
+        display.BeginAnimation(Controls.Canvas.TopProperty, new Animation.DoubleAnimation
+        {
+            From = from.Y,
+            To = toTop,
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = new Animation.QuinticEase { EasingMode = Animation.EasingMode.EaseOut },
+            FillBehavior = Animation.FillBehavior.Stop
+        });
+    }
+
+    private static Media.ScaleTransform EnsureScale(Wpf.FrameworkElement element)
+    {
+        if (element.RenderTransform is Media.ScaleTransform existing) return existing;
+        Media.ScaleTransform scale = new(1, 1);
+        element.RenderTransformOrigin = new Wpf.Point(0.5, 0.5);
+        element.RenderTransform = scale;
+        return scale;
+    }
+
+    private static void ScaleTo(Wpf.FrameworkElement element, double value, int milliseconds)
+    {
+        Media.ScaleTransform scale = EnsureScale(element);
+        Animation.DoubleAnimation animation = new()
+        {
+            To = value,
+            Duration = TimeSpan.FromMilliseconds(milliseconds),
+            EasingFunction = new Animation.QuinticEase { EasingMode = Animation.EasingMode.EaseOut }
+        };
+        scale.BeginAnimation(Media.ScaleTransform.ScaleXProperty, animation);
+        scale.BeginAnimation(Media.ScaleTransform.ScaleYProperty, animation);
+    }
+
+    private void AttachMonitorHover(Controls.Border display)
+    {
+        display.MouseEnter += (_, _) =>
+        {
+            if (_draggingMonitor is null) ScaleTo(display, 1.03, 140);
+        };
+        display.MouseLeave += (_, _) =>
+        {
+            if (!ReferenceEquals(_draggingMonitor, display)) ScaleTo(display, 1, 180);
+        };
+    }
+
+    private void SetupGuideExpand_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (_arrangeOverlay is null) OpenArrangementOverlay();
+        else CloseArrangementOverlay();
+    }
+
+    // The setup guide panel is 246px wide, which is enough to read a layout and not enough to
+    // place one. This lifts the same canvas onto a surface big enough to work on.
+    private void OpenArrangementOverlay()
+    {
+        Controls.Grid shell = new();
+        shell.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+        shell.RowDefinitions.Add(new Controls.RowDefinition { Height = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        shell.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+
+        Controls.StackPanel header = new();
+        header.Children.Add(Text("Arrange your screens", 15, Brush("TextBrush"), Wpf.FontWeights.SemiBold));
+        Controls.TextBlock hint = Text(
+            "Drag a screen to place it. Screens snap to each other and cannot overlap.",
+            12, Brush("MutedBrush"));
+        hint.Margin = new Wpf.Thickness(0, 4, 0, 12);
+        header.Children.Add(hint);
+        shell.Children.Add(header);
+
+        Controls.Border host = new()
+        {
+            Background = Brush("WindowBrush"),
+            BorderBrush = Brush("BorderSoftBrush"),
+            BorderThickness = new Wpf.Thickness(1),
+            CornerRadius = new Wpf.CornerRadius(7)
+        };
+        Controls.Grid.SetRow(host, 1);
+        shell.Children.Add(host);
+        _arrangeCanvasHost = host;
+
+        Controls.Button done = new()
+        {
+            Content = "Done",
+            Style = GetStyle("PrimaryButton"),
+            HorizontalAlignment = Wpf.HorizontalAlignment.Right,
+            Margin = new Wpf.Thickness(0, 12, 0, 0)
+        };
+        done.Click += (_, _) => CloseArrangementOverlay();
+        Controls.Grid.SetRow(done, 2);
+        shell.Children.Add(done);
+
+        Controls.Border panel = new()
+        {
+            Width = 660,
+            Height = 470,
+            Padding = new Wpf.Thickness(18),
+            Background = Brush("ChromeBrush"),
+            BorderBrush = Brush("BorderBrush"),
+            BorderThickness = new Wpf.Thickness(1),
+            CornerRadius = new Wpf.CornerRadius(10),
+            HorizontalAlignment = Wpf.HorizontalAlignment.Center,
+            VerticalAlignment = Wpf.VerticalAlignment.Center,
+            Child = shell
+        };
+        Controls.Panel.SetZIndex(panel, 50);
+        SetupGuideLayer.Children.Add(panel);
+        _arrangeOverlay = panel;
+        SetupGuideExpandIcon.Symbol = Fluent.SymbolRegular.FullScreenMinimize24;
+
+        // Rise into place rather than appear: the panel is covering content the user was just
+        // looking at, so the movement explains where it came from.
+        panel.Opacity = 0;
+        Media.ScaleTransform grow = EnsureScale(panel);
+        grow.ScaleX = 0.97;
+        grow.ScaleY = 0.97;
+        panel.BeginAnimation(OpacityProperty, StrongDoubleAnimationTo(1, 220));
+        ScaleTo(panel, 1, 260);
+
+        // The canvas is new, so there is nothing to glide from on this first render.
+        _lastArrangementPixels.Clear();
+        _lastArrangementCanvasWidth = 0;
+        UpdateSetupPreview();
+    }
+
+    private void RemoveArrangementOverlay()
+    {
+        if (_arrangeOverlay is not null) SetupGuideLayer.Children.Remove(_arrangeOverlay);
+        _arrangeOverlay = null;
+        _arrangeCanvasHost = null;
+        if (SetupGuideExpandIcon is not null) SetupGuideExpandIcon.Symbol = Fluent.SymbolRegular.FullScreenMaximize24;
+        _lastArrangementPixels.Clear();
+        _lastArrangementCanvasWidth = 0;
+    }
+
+    private void CloseArrangementOverlay()
+    {
+        if (_arrangeOverlay is Controls.Border closing)
+        {
+            _arrangeOverlay = null;
+            _arrangeCanvasHost = null;
+            SetupGuideExpandIcon.Symbol = Fluent.SymbolRegular.FullScreenMaximize24;
+            _lastArrangementPixels.Clear();
+            _lastArrangementCanvasWidth = 0;
+
+            Animation.DoubleAnimation fade = StrongDoubleAnimationTo(0, 160);
+            fade.Completed += (_, _) => SetupGuideLayer.Children.Remove(closing);
+            closing.IsHitTestVisible = false;
+            closing.BeginAnimation(OpacityProperty, fade);
+            ScaleTo(closing, 0.97, 180);
+        }
+        UpdateSetupPreview();
+    }
+
+    // Dragging happens in preview pixels and is only converted back to display coordinates on
+    // release. Re-deriving the layout on every mouse move would shift the bounds under the
+    // cursor -- the rectangle would swim away from the pointer as it moved.
+    private void AttachMonitorDrag(Controls.Canvas canvas, Controls.Border display)
+    {
+        display.MouseLeftButtonDown += (_, e) =>
+        {
+            // A glide still running would keep writing Canvas.Left underneath the pointer and
+            // the rectangle would swim away from the cursor. Hand control back first.
+            display.BeginAnimation(Controls.Canvas.LeftProperty, null);
+            display.BeginAnimation(Controls.Canvas.TopProperty, null);
+            _draggingMonitor = display;
+            _dragOrigin = e.GetPosition(canvas);
+            _dragOriginLeft = Controls.Canvas.GetLeft(display);
+            _dragOriginTop = Controls.Canvas.GetTop(display);
+            display.CaptureMouse();
+            Controls.Panel.SetZIndex(display, 10);
+            ScaleTo(display, 1.06, 120);
+            e.Handled = true;
+        };
+
+        display.MouseMove += (_, e) =>
+        {
+            if (!ReferenceEquals(_draggingMonitor, display) || !display.IsMouseCaptured) return;
+            Wpf.Point now = e.GetPosition(canvas);
+            double left = _dragOriginLeft + (now.X - _dragOrigin.X);
+            double top = _dragOriginTop + (now.Y - _dragOrigin.Y);
+            (left, top) = SnapToNeighbours(canvas, display, left, top);
+            (left, top) = PushOutOfNeighbours(canvas, display, left, top);
+            Controls.Canvas.SetLeft(display, Math.Max(-40, Math.Min(canvas.Width + 40 - display.Width, left)));
+            Controls.Canvas.SetTop(display, Math.Max(-40, Math.Min(canvas.Height + 40 - display.Height, top)));
+        };
+
+        display.MouseLeftButtonUp += (_, e) =>
+        {
+            if (!ReferenceEquals(_draggingMonitor, display)) return;
+            e.Handled = true;
+            display.ReleaseMouseCapture();
+        };
+
+        // Finishing here rather than on mouse-up covers the case where capture is taken away --
+        // another window stealing focus mid-drag would otherwise leave the screen stuck lifted
+        // and the next click would resume a drag the user had abandoned.
+        display.LostMouseCapture += (_, _) =>
+        {
+            if (!ReferenceEquals(_draggingMonitor, display)) return;
+            _draggingMonitor = null;
+            Controls.Panel.SetZIndex(display, 0);
+            ScaleTo(display, display.IsMouseOver ? 1.03 : 1, 200);
+            CommitDraggedArrangement(canvas);
+        };
+    }
+
+    /// <summary>Pulls a dragged edge onto a neighbour's edge, so screens line up the way they physically sit.</summary>
+    private static (double Left, double Top) SnapToNeighbours(
+        Controls.Canvas canvas,
+        Controls.Border dragged,
+        double left,
+        double top)
+    {
+        const double threshold = 5;
+        foreach (Controls.Border other in canvas.Children.OfType<Controls.Border>())
+        {
+            if (ReferenceEquals(other, dragged)) continue;
+            double otherLeft = Controls.Canvas.GetLeft(other);
+            double otherTop = Controls.Canvas.GetTop(other);
+            foreach (double candidate in new[] { otherLeft - dragged.Width, otherLeft + other.Width, otherLeft })
+            {
+                if (Math.Abs(left - candidate) < threshold) left = candidate;
+            }
+            foreach (double candidate in new[] { otherTop, otherTop + other.Height - dragged.Height, otherTop + (other.Height - dragged.Height) / 2 })
+            {
+                if (Math.Abs(top - candidate) < threshold) top = candidate;
+            }
+        }
+        return (left, top);
+    }
+
+    /// <summary>
+    /// Windows never lets two screens occupy the same space, and neither does this: a rectangle
+    /// dragged over a neighbour slides out along whichever axis it has travelled least far into,
+    /// which lands it flush against the side it came from.
+    /// </summary>
+    private static (double Left, double Top) PushOutOfNeighbours(
+        Controls.Canvas canvas,
+        Controls.Border dragged,
+        double left,
+        double top)
+    {
+        List<Wpf.Rect> others = canvas.Children.OfType<Controls.Border>()
+            .Where(border => !ReferenceEquals(border, dragged) && border.Tag is string)
+            .Select(border => new Wpf.Rect(
+                Controls.Canvas.GetLeft(border), Controls.Canvas.GetTop(border), border.Width, border.Height))
+            .ToList();
+        Wpf.Rect placed = PushOutOfRects(new Wpf.Rect(left, top, dragged.Width, dragged.Height), others);
+        return (placed.X, placed.Y);
+    }
+
+    /// <summary>The overlap rule as plain geometry, so it can be checked without a window.</summary>
+    internal static Wpf.Rect PushOutOfRects(Wpf.Rect dragged, IReadOnlyList<Wpf.Rect> others)
+    {
+        // A few passes so squeezing between two screens settles instead of oscillating.
+        for (int pass = 0; pass < 4; pass++)
+        {
+            bool moved = false;
+            foreach (Wpf.Rect other in others)
+            {
+                // Touching edges are not an overlap -- that is the arrangement we want.
+                if (dragged.Left >= other.Right || dragged.Right <= other.Left ||
+                    dragged.Top >= other.Bottom || dragged.Bottom <= other.Top)
+                {
+                    continue;
+                }
+
+                double outLeft = other.Left - dragged.Width - dragged.X;
+                double outRight = other.Right - dragged.X;
+                double outUp = other.Top - dragged.Height - dragged.Y;
+                double outDown = other.Bottom - dragged.Y;
+                double dx = Math.Abs(outLeft) <= Math.Abs(outRight) ? outLeft : outRight;
+                double dy = Math.Abs(outUp) <= Math.Abs(outDown) ? outUp : outDown;
+                if (Math.Abs(dx) <= Math.Abs(dy)) dragged.X += dx; else dragged.Y += dy;
+                moved = true;
+            }
+            if (!moved) break;
+        }
+        return dragged;
+    }
+
+    private void CommitDraggedArrangement(Controls.Canvas canvas)
+    {
+        if (_previewScale <= 0) return;
+        foreach (Controls.Border display in canvas.Children.OfType<Controls.Border>())
+        {
+            if (display.Tag is not string devicePath) continue;
+            // A neighbour still gliding would report its animated position rather than the one
+            // it is settling on, and that halfway value would be saved as the real layout.
+            display.BeginAnimation(Controls.Canvas.LeftProperty, null);
+            display.BeginAnimation(Controls.Canvas.TopProperty, null);
+            double worldX = _previewMinX + (Controls.Canvas.GetLeft(display) - _previewOffsetX) / _previewScale;
+            double worldY = _previewMinY + (Controls.Canvas.GetTop(display) - _previewOffsetY) / _previewScale;
+            _setupCustomPositions[devicePath] = new MonitorPosition((int)Math.Round(worldX), (int)Math.Round(worldY));
+        }
+
+        if (SetupGuideLayoutPicker.ItemsSource is IEnumerable<DisplayLayoutOption> options)
+        {
+            DisplayLayoutOption? custom = options.FirstOrDefault(option => option.Value == DisplayLayoutMode.Custom);
+            if (custom is not null && !ReferenceEquals(SetupGuideLayoutPicker.SelectedItem, custom))
+            {
+                // Assigning SelectedItem re-enters SelectionChanged, which would wipe the
+                // positions just captured, so refresh explicitly instead of falling through.
+                SetupGuideLayoutPicker.SelectedItem = custom;
+                return;
+            }
+        }
+        UpdateSetupPreview();
     }
 
     private Controls.Border CreateDetailRow(Fluent.SymbolRegular symbol, Wpf.UIElement primary, string secondary)
@@ -2910,7 +3333,10 @@ public partial class PitLaunchView : Controls.UserControl
     private void Root_PreviewKeyDown(object sender, Input.KeyEventArgs e)
     {
         if (e.Key != Input.Key.Escape) return;
-        if (_dialogMode != DialogMode.None) CompleteDialog(false);
+        // Escape backs out one layer at a time. Without this the arrangement overlay would fall
+        // through to the guide underneath and throw away a setup mid-creation.
+        if (_arrangeOverlay is not null) CloseArrangementOverlay();
+        else if (_dialogMode != DialogMode.None) CompleteDialog(false);
         else if (_page != AppPage.Home) Navigate(AppPage.Home);
         else _owner.HideToTray();
         e.Handled = true;

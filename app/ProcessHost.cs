@@ -511,6 +511,81 @@ internal static class SelfTest
             }
         });
 
+        Check("screens cannot overlap", () =>
+        {
+            System.Windows.Rect anchor = new(100, 100, 200, 120);
+
+            // Dropped mostly on top, slightly right of centre: it should slide clear to the right.
+            System.Windows.Rect resolved = PitLaunchView.PushOutOfRects(
+                new System.Windows.Rect(160, 110, 200, 120), [anchor]);
+            if (resolved.Left < anchor.Right && resolved.Right > anchor.Left &&
+                resolved.Top < anchor.Bottom && resolved.Bottom > anchor.Top)
+            {
+                throw new InvalidOperationException($"Two screens still overlap: {resolved} against {anchor}.");
+            }
+
+            // Already flush against the right edge: touching is the goal, so nothing may move.
+            System.Windows.Rect flush = new(300, 100, 200, 120);
+            System.Windows.Rect untouched = PitLaunchView.PushOutOfRects(flush, [anchor]);
+            if (untouched != flush)
+                throw new InvalidOperationException($"A flush screen was pushed to {untouched} instead of staying at {flush}.");
+
+            // Dropped into a gap exactly its own width, it must settle flush between the two
+            // rather than bouncing between them. A gap narrower than the screen has no valid
+            // answer, so that case is not asserted.
+            System.Windows.Rect right = new(360, 100, 200, 120);
+            System.Windows.Rect settled = PitLaunchView.PushOutOfRects(
+                new System.Windows.Rect(280, 105, 60, 110), [anchor, right]);
+            if (Math.Abs(settled.Left - anchor.Right) > 0.01)
+                throw new InvalidOperationException($"A screen dropped into an exact gap settled at {settled.Left} instead of {anchor.Right}.");
+            foreach (System.Windows.Rect neighbour in new[] { anchor, right })
+            {
+                if (settled.Left < neighbour.Right && settled.Right > neighbour.Left &&
+                    settled.Top < neighbour.Bottom && settled.Bottom > neighbour.Top)
+                {
+                    throw new InvalidOperationException($"A screen squeezed between two others settled overlapping {neighbour}.");
+                }
+            }
+        });
+
+        Check("custom display arrangement", () =>
+        {
+            DisplayService displays = new();
+            List<DisplayDeviceOption> devices = displays.ListConnectedDisplays();
+            if (devices.Count < 2) return;
+
+            DisplayDeviceOption main = devices.FirstOrDefault(device => device.IsPrimary) ?? devices[0];
+            DisplayDeviceOption second = devices.First(device =>
+                !string.Equals(device.DevicePath, main.DevicePath, StringComparison.OrdinalIgnoreCase));
+            List<string> both = [main.DevicePath, second.DevicePath];
+
+            // An offset no computed mode would ever produce, so honouring it cannot be a coincidence.
+            Dictionary<string, MonitorPosition> placed = new(StringComparer.OrdinalIgnoreCase)
+            {
+                [main.DevicePath] = new MonitorPosition(0, 0),
+                [second.DevicePath] = new MonitorPosition(-1234, 567)
+            };
+
+            DisplaySnapshot custom = displays.BuildSnapshot(
+                new DisplaySetupRequest(both, main.DevicePath, DisplayLayoutMode.Custom, placed));
+            MonitorSnapshot dragged = custom.Monitors.Single(monitor => monitor.Enabled &&
+                string.Equals(monitor.DevicePath, second.DevicePath, StringComparison.OrdinalIgnoreCase));
+            MonitorSnapshot origin = custom.Monitors.Single(monitor => monitor.Enabled && monitor.Primary);
+            if (origin.X != 0 || origin.Y != 0)
+                throw new InvalidOperationException("A custom arrangement did not put the main screen at the origin.");
+            if (dragged.X != -1234 || dragged.Y != 567)
+                throw new InvalidOperationException($"A hand-placed screen landed at {dragged.X},{dragged.Y} instead of -1234,567.");
+
+            // The computed modes must keep ignoring hand placement, or picking one would not
+            // be a way back out of a custom layout.
+            DisplaySnapshot computed = displays.BuildSnapshot(
+                new DisplaySetupRequest(both, main.DevicePath, DisplayLayoutMode.Horizontal, placed));
+            MonitorSnapshot recomputed = computed.Monitors.Single(monitor => monitor.Enabled &&
+                string.Equals(monitor.DevicePath, second.DevicePath, StringComparison.OrdinalIgnoreCase));
+            if (recomputed.X == -1234 && recomputed.Y == 567)
+                throw new InvalidOperationException("A computed arrangement used custom positions it should have ignored.");
+        });
+
         Check("all-display recovery validation", () =>
         {
             DisplayService displays = new();

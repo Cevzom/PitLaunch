@@ -131,7 +131,21 @@ internal sealed class DisplayService
 
         bool keepCurrent = request.LayoutMode == DisplayLayoutMode.KeepCurrent ||
                            request.LayoutMode == DisplayLayoutMode.Recommended && canKeepCurrent;
-        if (keepCurrent && canKeepCurrent)
+        if (request.LayoutMode == DisplayLayoutMode.Custom && request.CustomPositions is { Count: > 0 })
+        {
+            // Hand-placed corners win outright. A display the user never moved keeps whatever
+            // Windows reports, so adding a screen to a custom layout does not reset the rest.
+            foreach (MonitorSnapshot monitor in enabled)
+            {
+                if (request.CustomPositions.TryGetValue(monitor.DevicePath, out MonitorPosition placed))
+                {
+                    monitor.X = placed.X;
+                    monitor.Y = placed.Y;
+                }
+            }
+            NormalizeAroundPrimary(enabled, primary);
+        }
+        else if (keepCurrent && canKeepCurrent)
         {
             NormalizeAroundPrimary(enabled, primary);
         }

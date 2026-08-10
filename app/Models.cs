@@ -89,13 +89,22 @@ internal enum DisplayLayoutMode
 {
     Recommended,
     Horizontal,
-    KeepCurrent
+    KeepCurrent,
+    Custom
 }
 
+/// <summary>
+/// <paramref name="CustomPositions"/> carries hand-placed top-left corners in display
+/// coordinates, keyed by device path. It is only read for <see cref="DisplayLayoutMode.Custom"/>;
+/// every other mode computes positions and ignores it.
+/// </summary>
 internal sealed record DisplaySetupRequest(
     IReadOnlyList<string> EnabledDevicePaths,
     string PrimaryDevicePath,
-    DisplayLayoutMode LayoutMode);
+    DisplayLayoutMode LayoutMode,
+    IReadOnlyDictionary<string, MonitorPosition>? CustomPositions = null);
+
+internal readonly record struct MonitorPosition(int X, int Y);
 
 internal sealed record DisplayDeviceOption(
     string DevicePath,
