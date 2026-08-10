@@ -81,9 +81,9 @@ touches them.
 
 <br>
 
-## Why not something else
+## How this differs
 
-|  | PitLaunch | DisplayMagician | Sim launchers |
+|  | PitLaunch | DisplayMagician | SimLauncher |
 |---|:---:|:---:|:---:|
 | Screens | yes | yes | no |
 | Sound | yes | yes | no |
@@ -92,8 +92,17 @@ touches them.
 | Checks with Windows first | yes | no | no |
 | Rolls back if it fails | yes | no | no |
 
-Others do part of it. PitLaunch treats a setup as one thing, and asks Windows to validate a
-display layout *before* applying it, so a bad switch can't leave you on a black screen.
+**DisplayMagician** covers displays and audio, and it is the closest thing to this. Where it
+tends to bite is the switch itself — profiles that apply partially, or don't take, and leave you
+straightening out monitors by hand.
+
+**SimLauncher** and the launchers bundled with wheels only start programs. Your screens and your
+sound are still your problem.
+
+**PitLaunch treats a setup as one object.** Displays, audio, window positions and applications
+move together or not at all. Before it changes anything it asks Windows whether the display
+layout can actually be restored, and if a step fails partway it rolls back — so a bad switch
+can't strand you on a black screen with no way to click anything.
 
 <br>
 
@@ -119,5 +128,5 @@ Found a bug? Send `%APPDATA%\PitLaunch\pitlaunch.log` and what you were doing.
 <br>
 
 <div align="center">
-<sub>MIT licensed &nbsp;·&nbsp; UI set in <a href="https://fonts.google.com/specimen/Cabin">Cabin</a> and <a href="https://fonts.google.com/specimen/Space+Grotesk">Space Grotesk</a> (OFL)</sub>
+<sub>MIT licensed &nbsp;·&nbsp; UI set in <a href="https://fonts.google.com/specimen/Cabin">Cabin</a> and <a href="https://fonts.google.com/specimen/Archivo">Archivo</a> (OFL)</sub>
 </div>

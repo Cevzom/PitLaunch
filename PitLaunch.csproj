@@ -35,9 +35,10 @@
     <Compile Include="app\**\*.cs" />
     <Page Include="app\PitLaunchView.xaml" />
     <Resource Include="assets\pitlaunch-mark.png" />
-    <!-- Cabin + Space Grotesk, SIL Open Font License (licences sit beside the files).
-         Static weight instances cut from the Google variable fonts: WPF ignores variable
-         axes, so a VF would render Regular and fake every other weight. -->
+    <!-- Cabin + Archivo, SIL Open Font License (licences sit beside the files).
+         Static weight instances only: WPF ignores variable axes, so a VF would render
+         Regular and fake every other weight. Google Fonts ships Archivo as a variable
+         font, so these come from the Omnibus-Type upstream repo, which still cuts statics. -->
     <Resource Include="assets\fonts\*.ttf" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <PackageReference Include="Velopack" Version="1.2.0" />

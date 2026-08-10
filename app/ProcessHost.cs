@@ -313,6 +313,33 @@ internal static class SelfTest
             }
         });
 
+        Check("embedded fonts resolve", () =>
+        {
+            // The fonts are a Resource inside this assembly, and a missing one fails silently:
+            // WPF falls back to a system face and the app merely looks wrong on someone else's
+            // machine. Resolve the pack URI the way the XAML does and insist both faces exist.
+            //
+            // A headless self test has no Application, so two things the running app gets for
+            // free have to be set up by hand: the "pack" scheme registration, and the assembly
+            // that "application:,,," resolves resources against.
+            _ = System.IO.Packaging.PackUriHelper.UriSchemePack;
+            System.Windows.Application.ResourceAssembly ??= typeof(SelfTest).Assembly;
+            const string fontsUri = "pack://application:,,,/PitLaunch;component/assets/fonts/";
+            List<string> families = System.Windows.Media.Fonts.GetFontFamilies(new Uri(fontsUri))
+                .SelectMany(family => family.FamilyNames.Values)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (string required in new[] { "Cabin", "Archivo" })
+            {
+                if (!families.Contains(required, StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"The embedded {required} font is missing, so the app would fall back to a system face. " +
+                        $"Found: {(families.Count == 0 ? "nothing" : string.Join(", ", families))}");
+                }
+            }
+        });
+
         Check("switch confirmation policy", () =>
         {
             // Manual switches must ask. The tray counts as manual: ActivateProfileAsync shows the

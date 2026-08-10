@@ -14,10 +14,11 @@
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
-        <!-- Cabin for UI text, Space Grotesk for display type: the two faces the reference
-             interface uses. Static instances are embedded under assets/fonts (OFL). -->
+        <!-- Cabin for UI text, Archivo for display type. Archivo is a grotesque drawn for
+             signage and small sizes, so headings hold their character at title weight without
+             fighting Cabin underneath. Static instances are embedded under assets/fonts (OFL). -->
         <FontFamily x:Key="BodyFont">pack://application:,,,/PitLaunch;component/assets/fonts/#Cabin</FontFamily>
-        <FontFamily x:Key="DisplayFont">pack://application:,,,/PitLaunch;component/assets/fonts/#Space Grotesk</FontFamily>
+        <FontFamily x:Key="DisplayFont">pack://application:,,,/PitLaunch;component/assets/fonts/#Archivo</FontFamily>
 
         <!-- Neutrals are cool-grey rather than green-tinted so the cyan brand sits naturally.
              The rail is the LIGHTER surface and the canvas the darker one, matching the
@@ -51,8 +52,8 @@
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <!-- Ideal, not Display: Display quantises stems and advance widths to whole pixels,
-                 which only looks right for fonts hinted for it (Segoe UI). Cabin and Space
-                 Grotesk are not, so Display made them read as chunky and unevenly spaced. -->
+                 which only looks right for fonts hinted for it (Segoe UI). Cabin and Archivo
+                 are not, so Display made them read as chunky and unevenly spaced. -->
             <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
             <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
         </Style>
