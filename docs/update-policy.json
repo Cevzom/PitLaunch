@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "minimumVersion": "0.9.9-beta.1",
-  "message": "This PitLaunch build is no longer supported. Install the latest release to continue safely.",
+  "minimumVersion": "1.0.0",
+  "message": "PitLaunch 1.0 or newer is required. Install the latest release to continue safely.",
   "downloadUrl": "https://github.com/Cevzom/PitLaunch/releases/latest"
 }
