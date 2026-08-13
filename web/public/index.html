@@ -301,7 +301,7 @@
 				<div class="section-heading reveal">
 					<p class="eyebrow"><span></span> Interactive app preview</p>
 					<h2>Try the interface before installing it.</h2>
-					<p>Explore setups, hardware and settings in a safe front-end demo. Nothing here can change your PC.</p>
+					<p>Use the same sidebar and setup flow as the Windows app. Nothing here can change your PC.</p>
 				</div>
 
 				<div class="app-showcase reveal" data-demo-app data-active-setup="desk">
@@ -312,10 +312,12 @@
 						</div>
 						<div class="preview-layout">
 							<aside class="preview-sidebar">
-								<div class="preview-brand"><img src="/img/mark-96.png" alt="" width="32" height="32" /><strong>PitLaunch</strong><small>1.0</small></div>
+								<div class="preview-brand"><img src="/img/mark-96.png" alt="" width="46" height="46" /><span><strong>PitLaunch</strong><small>1.0</small></span></div>
 								<nav aria-label="Demo app navigation">
-									<button class="preview-nav is-on" type="button" data-app-view-target="setups" aria-current="page"><span aria-hidden="true">▣</span> Setups</button>
-									<button class="preview-nav" type="button" data-app-view-target="settings"><span aria-hidden="true">⚙</span> Settings</button>
+									<button class="preview-nav is-on" type="button" data-app-view-target="setups" aria-current="page"><span class="preview-nav-icon preview-icon-displays" aria-hidden="true"></span> Setups</button>
+									<button class="preview-nav" type="button" data-app-view-target="games"><span class="preview-nav-icon preview-icon-game" aria-hidden="true"></span> Games</button>
+									<button class="preview-nav" type="button" data-app-view-target="integrations"><span class="preview-nav-icon preview-icon-link" aria-hidden="true"></span> Integrations</button>
+									<button class="preview-nav" type="button" data-app-view-target="settings"><span class="preview-nav-icon preview-icon-settings" aria-hidden="true"></span> Settings</button>
 								</nav>
 								<div class="preview-status"><span><i></i><strong data-demo-active-name>Desk</strong></span><small data-demo-active-meta>2 displays · 6 windows</small></div>
 							</aside>
@@ -336,29 +338,63 @@
 
 									<article class="preview-setup is-active" data-setup-card="desk">
 										<button class="setup-open" type="button" data-open-detail="desk" aria-label="Open Desk setup details">
-											<span class="setup-displays desk-displays" aria-hidden="true"><i>2</i><i>1</i></span>
-											<span class="setup-copy"><span class="setup-title"><strong>Desk</strong><em>Dual display</em><b data-setup-state>Active</b></span><span class="setup-facts"><small>◖ Headphones (High Definition Audio)</small><small>▦ 6 windows restored</small><small>▣ 2560 × 1440 at 170 Hz</small></span></span>
+											<span class="setup-displays desk-displays" aria-hidden="true"><i>2</i><i>1</i><small>DISPLAY LAYOUT</small></span>
+											<span class="setup-copy"><span class="setup-title"><strong>Desk</strong><em>Dual display</em><b data-setup-state>Active</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Headphones (High Definition Audio)</small><small><i class="fact-dot fact-windows"></i> 6 windows restored</small><small><i class="fact-dot fact-display"></i> 2560 × 1440 at 170 Hz</small></span></span>
 										</button>
-										<button class="setup-apply" type="button" data-demo-apply="desk">Reapply</button>
+										<div class="setup-action"><small>CURRENT MODE</small><strong data-setup-state-label>Applied</strong><button class="setup-apply" type="button" data-demo-apply="desk">Reapply</button></div>
 									</article>
 
 									<article class="preview-setup" data-setup-card="sim">
 										<button class="setup-open" type="button" data-open-detail="sim" aria-label="Open Sim Racing setup details">
-											<span class="setup-displays sim-displays" aria-hidden="true"><i>1</i></span>
-											<span class="setup-copy"><span class="setup-title"><strong>Sim Racing</strong><em>Single screen</em><b data-setup-state>Ready</b></span><span class="setup-facts"><small>◖ Speakers (SW5 Dongle)</small><small>▦ CrewChief + SimHub</small><small>▣ 3440 × 1440 at 165 Hz</small></span></span>
+											<span class="setup-displays sim-displays" aria-hidden="true"><i>1</i><small>DISPLAY LAYOUT</small></span>
+											<span class="setup-copy"><span class="setup-title"><strong>Sim Racing</strong><em>Single screen</em><b data-setup-state>Ready</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Speakers (SW5 Dongle)</small><small><i class="fact-dot fact-windows"></i> CrewChief + SimHub</small><small><i class="fact-dot fact-display"></i> 3440 × 1440 at 165 Hz</small></span></span>
 										</button>
-										<button class="setup-apply" type="button" data-demo-apply="sim">Switch</button>
+										<div class="setup-action"><small>READY</small><strong data-setup-state-label>Available</strong><button class="setup-apply" type="button" data-demo-apply="sim">Switch</button></div>
 									</article>
+								</section>
+
+								<section class="preview-view" data-app-view="games" aria-label="Games" hidden>
+									<header class="preview-page-head">
+										<div><h3>PitLaunch <span>Games</span></h3><p>Switch setups automatically when a saved racing game starts.</p></div>
+										<button class="preview-primary" type="button" data-demo-action="The installed app scans supported launchers and running games.">Scan games</button>
+									</header>
+									<div class="preview-panel detection-panel">
+										<div><h4>Game detection</h4><p>Watch the presets below and switch setups automatically.</p></div>
+										<button class="preview-toggle is-on" type="button" aria-label="Game detection" aria-pressed="true" data-demo-toggle><i></i></button>
+									</div>
+									<div class="preview-section-heading"><div><h4>Automatic game switching</h4><p>Each game can override audio, companion apps, and Discord behavior.</p></div><button class="preview-secondary" type="button" data-demo-action="Add any running game manually in the installed app.">+ Manually</button></div>
+									<div class="game-list">
+										<article class="game-card"><span class="game-mark">AC</span><div><h4>Assetto Corsa Competizione</h4><p>acc.exe · Steam</p><span><i></i> Sim Racing</span></div><button type="button" data-demo-action="Game-specific audio, apps, Discord, and exit behavior open here.">Customize</button></article>
+										<article class="game-card"><span class="game-mark game-mark-alt">iR</span><div><h4>iRacing</h4><p>iRacingSim64DX11.exe · Detected</p><span><i></i> Sim Racing</span></div><button type="button" data-demo-action="This preset would activate Sim Racing when iRacing starts.">Customize</button></article>
+									</div>
+								</section>
+
+								<section class="preview-view" data-app-view="integrations" aria-label="Integrations" hidden>
+									<header class="preview-page-head integration-head">
+										<div><h3>PitLaunch <span>integrations</span></h3><p>Connect Discord and the controls you use at the rig.</p></div>
+										<label><span>CONFIGURE FOR SETUP</span><select aria-label="Integration setup"><option>Desk</option><option>Sim Racing</option></select></label>
+									</header>
+									<div class="preview-panel discord-panel">
+										<div class="panel-title"><div><h4>Discord</h4><p>Set the normal voice and audio behavior for this setup.</p></div><button class="preview-toggle is-on" type="button" aria-label="Launch Discord with setup" aria-pressed="true" data-demo-toggle><i></i></button></div>
+										<div class="integration-fields"><label><span>Discord output</span><select><option>Headphones</option></select></label><label><span>Discord microphone</span><select><option>Default microphone</option></select></label><label><span>Volume %</span><input value="85" readonly /></label></div>
+										<small>PitLaunch follows Windows audio devices. It never needs your Discord account or token.</small>
+										<button class="preview-primary" type="button" data-demo-action="Discord choices saved in this visual preview.">Save Discord</button>
+									</div>
+									<div class="integration-cards">
+										<article><div><span class="integration-icon">SD</span><b>READY</b></div><h4>Stream Deck</h4><p>Install the PitLaunch plugin, then assign a setup or Toggle Desk / Rig to a key.</p><button class="preview-primary" type="button" data-demo-action="In the installed app, this opens the included Stream Deck plugin installer.">Install plugin</button></article>
+										<article><div><span class="integration-icon integration-icon-mobile">M</span><b>OPTIONAL</b></div><h4>Stream Deck Mobile</h4><p>Use Elgato's phone app with the same PitLaunch actions. No extra pairing is needed.</p></article>
+									</div>
 								</section>
 
 								<section class="preview-view" data-app-view="detail" aria-label="Setup details" hidden>
 									<button class="preview-back" type="button" data-app-back><span aria-hidden="true">←</span> Setups</button>
-									<header class="detail-head"><div><span><h3 data-detail-name>Desk</h3><b data-detail-active>Active</b></span><p data-detail-meta>2 displays · 6 windows</p></div><button class="preview-primary" type="button" data-detail-apply>Reapply setup</button></header>
+									<header class="detail-head"><div><span><h3 data-detail-name>Desk</h3><b data-detail-active>Active</b></span><p data-detail-meta>2 displays · 6 windows</p></div><div class="detail-actions"><button class="preview-secondary" type="button" data-demo-action="Editing is available in the installed app.">Edit</button><button class="preview-primary" type="button" data-detail-apply>Reapply setup</button></div></header>
 									<div class="detail-tabs" role="tablist" aria-label="Setup detail categories">
 										<button class="is-on" type="button" role="tab" aria-selected="true" data-detail-tab="hardware">Hardware</button>
 										<button type="button" role="tab" aria-selected="false" data-detail-tab="automation">Automation</button>
 									</div>
 									<div class="detail-panel is-on" data-detail-panel="hardware">
+										<div class="setup-identity"><div><h4>Setup identity</h4><p>Name and describe where this hardware is used.</p></div><label><span>Name</span><input value="Desk" readonly data-detail-identity-name /></label><label><span>Type</span><input value="Desk" readonly data-detail-identity-type /></label></div>
 										<div class="detail-section-head"><div><h4>Display layout</h4><p>Captured arrangement, resolution and primary display.</p></div><span data-detail-display-label>2 active</span></div>
 										<div class="detail-monitor-stage" data-detail-monitors="desk"><span class="detail-monitor secondary"><b>G24F 2</b><small>1920 × 1080</small></span><span class="detail-monitor primary"><b data-detail-primary-name>M27Q</b><small data-detail-primary-resolution>2560 × 1440</small></span></div>
 										<ul class="detail-devices">

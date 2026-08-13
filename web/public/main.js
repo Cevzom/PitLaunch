@@ -219,6 +219,10 @@
 			});
 			const monitorStage = demoApp.querySelector("[data-detail-monitors]");
 			if (monitorStage) monitorStage.dataset.detailMonitors = profile.monitors;
+			const identityName = demoApp.querySelector("[data-detail-identity-name]");
+			const identityType = demoApp.querySelector("[data-detail-identity-type]");
+			if (identityName) identityName.value = profile.name;
+			if (identityType) identityType.value = setup === "desk" ? "Desk" : "Sim Racing";
 			const activeBadge = demoApp.querySelector("[data-detail-active]");
 			if (activeBadge) activeBadge.hidden = setup !== activeSetup;
 			const detailApply = demoApp.querySelector("[data-detail-apply]");
@@ -234,8 +238,10 @@
 				const active = card.dataset.setupCard === setup;
 				card.classList.toggle("is-active", active);
 				const state = card.querySelector("[data-setup-state]");
+				const stateLabel = card.querySelector("[data-setup-state-label]");
 				const apply = card.querySelector("[data-demo-apply]");
 				if (state) state.textContent = active ? "Active" : "Ready";
+				if (stateLabel) stateLabel.textContent = active ? "Applied" : "Available";
 				if (apply) apply.textContent = active ? "Reapply" : "Switch";
 			});
 			demoApp.querySelectorAll("[data-demo-active-name]").forEach((element) => { element.textContent = profile.name; });
