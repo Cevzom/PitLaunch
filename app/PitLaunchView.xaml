@@ -528,17 +528,29 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
                             <TextBlock Text="PitLaunch" FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <Border Background="{StaticResource AccentSoftBrush}" BorderBrush="#17547A" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="7,1,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="BETA" Foreground="{StaticResource AccentBrush}" FontSize="9" FontWeight="Bold" />
+                                <TextBlock Text="1.0" Foreground="{StaticResource AccentBrush}" FontSize="9" FontWeight="Bold" />
                             </Border>
                         </StackPanel>
                     </StackPanel>
                     <!-- Height is rows x 38; the bar's resting offset per row is row*38 + 9. -->
-                    <Grid x:Name="NavigationHost" Height="76" ClipToBounds="False">
+                    <Grid x:Name="NavigationHost" Height="152" ClipToBounds="False">
                         <StackPanel>
                             <Button x:Name="SetupsNav" Style="{StaticResource NavButton}" Click="Back_Click" AutomationProperties.Name="Setups">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Desktop24" FontSize="17" Width="26" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                     <TextBlock Text="Setups" FontSize="14.5" FontWeight="Medium" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="GamesNav" Style="{StaticResource NavButton}" Click="Games_Click" AutomationProperties.Name="Games">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons" FontSize="16" Width="26" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    <TextBlock Text="Games" FontSize="14.5" FontWeight="Medium" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="IntegrationsNav" Style="{StaticResource NavButton}" Click="Integrations_Click" AutomationProperties.Name="Integrations">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE774;" FontFamily="Segoe Fluent Icons" FontSize="16" Width="26" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    <TextBlock Text="Integrations" FontSize="14.5" FontWeight="Medium" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                 </StackPanel>
                             </Button>
                             <Button x:Name="SettingsNav" Style="{StaticResource NavButton}" Click="Settings_Click" AutomationProperties.Name="Settings">
@@ -597,12 +609,20 @@
                         <TextBlock x:Name="HomeTitle" Style="{StaticResource PageTitle}"><Run x:Name="HomeTitleLead" Text="PitLaunch " /><Run x:Name="HomeTitleAccent" Text="Setups" Foreground="{StaticResource AccentBrush}" /></TextBlock>
                         <TextBlock x:Name="HomeSubtitle" Text="Switch the whole PC between your desk and rig in one move." Style="{StaticResource CaptionText}" Margin="1,5,0,0" />
                     </StackPanel>
-                    <Button x:Name="CaptureButton" Style="{StaticResource PrimaryButton}" Click="Capture_Click" HorizontalAlignment="Right" VerticalAlignment="Top" AutomationProperties.Name="Create setup">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="Add24" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource AccentInkBrush}" />
-                            <TextBlock Text="Create setup" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                        <Button x:Name="UndoSwitchButton" Style="{StaticResource SecondaryButton}" Click="UndoSwitch_Click" Visibility="Collapsed" Margin="0,0,8,0" AutomationProperties.Name="Undo last setup switch">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A7;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Undo" /></StackPanel>
+                        </Button>
+                        <Button x:Name="ToggleSetupButton" Style="{StaticResource SecondaryButton}" Click="ToggleSetup_Click" Visibility="Collapsed" Margin="0,0,8,0" AutomationProperties.Name="Toggle Desk and Sim Racing">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Desk ↔ Rig" /></StackPanel>
+                        </Button>
+                        <Button x:Name="CaptureButton" Style="{StaticResource PrimaryButton}" Click="Capture_Click" AutomationProperties.Name="Create setup">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Add24" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource AccentInkBrush}" />
+                                <TextBlock Text="Create setup" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <StackPanel x:Name="StatsSection" Grid.Row="1" Margin="0,26,0,0">
@@ -625,6 +645,7 @@
                                     <Border.RenderTransform><ScaleTransform ScaleX="0" /></Border.RenderTransform>
                                 </Border>
                             </Border>
+
                         </Grid>
                     </Border>
                     <Border Grid.Column="2" Style="{StaticResource StatTile}">
@@ -810,6 +831,50 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
+
+                            <Border Style="{StaticResource SectionPanel}" Margin="0,14,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,24,0">
+                                        <TextBlock Text="Setup readiness" Style="{StaticResource SectionTitle}" />
+                                        <TextBlock x:Name="ReadinessSummary" Text="Check displays, sound, applications, and controllers without switching." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                        <StackPanel x:Name="ReadinessItemsPanel" Margin="0,10,0,0" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Check setup" Click="CheckReadiness_Click" VerticalAlignment="Top" AutomationProperties.Name="Check setup readiness" />
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource SectionPanel}" Margin="0,14,0,0">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,15">
+                                        <StackPanel>
+                                            <TextBlock Text="Session hardware and power" Style="{StaticResource SectionTitle}" />
+                                            <TextBlock Text="Prepare the rig before apps launch, and restore Windows behavior when you leave." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Style="{StaticResource SecondaryButton}" Content="Save session options" Click="SaveSessionOptions_Click" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,13">
+                                                <StackPanel Margin="0,0,65,0"><TextBlock Text="Keep display awake" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Prevent sleep and screen blanking while this setup is active." Style="{StaticResource CaptionText}" Margin="0,3,0,0" TextWrapping="Wrap" /></StackPanel>
+                                                <CheckBox x:Name="KeepAwakeToggle" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="Power plan" Style="{StaticResource CaptionText}" />
+                                            <ComboBox x:Name="PowerPlanPicker" Style="{StaticResource Picker}" Margin="0,5,0,11" AutomationProperties.Name="Windows power plan" />
+                                            <TextBlock Text="HDR" Style="{StaticResource CaptionText}" />
+                                            <ComboBox x:Name="HdrModePicker" Style="{StaticResource Picker}" Margin="0,5,0,0" AutomationProperties.Name="HDR behavior" />
+                                            <TextBlock x:Name="HdrCapabilityText" Style="{StaticResource CaptionText}" Margin="0,5,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Expected controllers" FontWeight="SemiBold" FontSize="13" />
+                                            <TextBlock Text="Warn before switching if a selected wheel, pedals, or button box is missing." Style="{StaticResource CaptionText}" Margin="0,3,0,10" TextWrapping="Wrap" />
+                                            <StackPanel x:Name="ExpectedControllersPanel" />
+                                            <Button Style="{StaticResource QuietButton}" Content="Refresh controller list" Click="RefreshControllers_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
 
@@ -836,28 +901,185 @@
                                 </Button>
                             </Grid>
                             <StackPanel x:Name="AppsPanel" Margin="0,0,0,24" />
+                            <Button Style="{StaticResource PrimaryButton}" Content="Save applications" HorizontalAlignment="Right" Click="SaveAutomation_Click" Margin="0,0,0,8" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
 
-                            <Grid Margin="0,0,0,11">
-                                <StackPanel>
-                                    <TextBlock Text="Game detection" Style="{StaticResource SectionTitle}" />
-                                    <TextBlock Text="Activate this setup when a saved process starts." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+            <Grid x:Name="GamesPage" Visibility="Collapsed" Margin="44,30,44,14" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource PageTitle}"><Run Text="Game " /><Run Text="presets" Foreground="{StaticResource AccentBrush}" /></TextBlock>
+                        <TextBlock Text="Choose what happens when each game starts and closes." Style="{StaticResource CaptionText}" Margin="1,5,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="SETUP TO ACTIVATE" Style="{StaticResource EyebrowText}" />
+                        <ComboBox x:Name="GamesProfilePicker" Style="{StaticResource Picker}" Margin="0,6,0,0" SelectionChanged="GamesProfilePicker_SelectionChanged" AutomationProperties.Name="Game preset setup" />
+                    </StackPanel>
+                </Grid>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,28,20,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,20">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,14">
+                                    <StackPanel Margin="0,0,190,0">
+                                        <TextBlock Text="Game detection" Style="{StaticResource SectionTitle}" />
+                                        <TextBlock Text="Watch the game presets below and switch setups automatically." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="DetectionToggle" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="Detect saved game processes" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <Grid>
+                                        <StackPanel Margin="0,0,130,0"><TextBlock Text="Detection interval" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Seconds between checks." Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource ChromeBrush}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource IconButton}" Content="&#xE738;" ToolTip="Decrease interval" Click="PollDown_Click" Width="34" Height="34" />
+                                                <TextBlock x:Name="PollValue" Width="34" TextAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                                                <Button Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="Increase interval" Click="PollUp_Click" Width="34" Height="34" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <Grid Grid.Column="2">
+                                        <StackPanel Margin="0,0,145,0"><TextBlock Text="Exit grace" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Wait before returning to Desk." Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource ChromeBrush}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource IconButton}" Content="&#xE738;" ToolTip="Decrease grace period" Click="GraceDown_Click" Width="34" Height="34" />
+                                                <TextBlock x:Name="GraceValue" Width="52" TextAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" />
+                                                <Button Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="Increase grace period" Click="GraceUp_Click" Width="34" Height="34" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Content="Save detection" Click="SaveGameDetection_Click" Margin="16,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,20">
+                            <Grid>
+                                <StackPanel Margin="0,0,250,0">
+                                    <TextBlock Text="Automatic game switching" Style="{StaticResource SectionTitle}" />
+                                    <TextBlock Text="PitLaunch watches the saved process, activates the setup above, then applies this game's own audio, apps, and Discord choices." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Style="{StaticResource SecondaryButton}" Click="AddGameProcess_Click" Margin="0,0,8,0" AutomationProperties.Name="Add running app"
-                                            ToolTip="Type a process name, or pick from the apps running right now.">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource SecondaryButton}" Click="AddGameProcess_Click" Margin="0,0,8,0" AutomationProperties.Name="Add game manually" ToolTip="Type a process name or choose a running app.">
                                         <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" Margin="0,0,7,0" /><TextBlock Text="Manually" /></StackPanel>
                                     </Button>
-                                    <Button Style="{StaticResource PrimaryButton}" Click="AddGame_Click" AutomationProperties.Name="Add a game"
-                                            ToolTip="Pick from the games installed on this PC.">
+                                    <Button Style="{StaticResource PrimaryButton}" Click="AddGame_Click" AutomationProperties.Name="Add installed game" ToolTip="Pick from games installed on this PC.">
                                         <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7FC;" FontFamily="Segoe Fluent Icons" FontSize="12" Margin="0,0,7,0" /><TextBlock Text="Add game" /></StackPanel>
                                     </Button>
                                 </StackPanel>
                             </Grid>
-                            <StackPanel x:Name="GamesPanel" Margin="0,0,0,22" />
-                            <Button Style="{StaticResource PrimaryButton}" Content="Save automation" HorizontalAlignment="Right" Click="SaveAutomation_Click" Margin="0,0,0,8" />
-                        </StackPanel>
-                    </ScrollViewer>
+                        </Border>
+                        <StackPanel x:Name="GamesPanel" Margin="0,0,0,22" />
+                        <Button Style="{StaticResource PrimaryButton}" Content="Save game presets" HorizontalAlignment="Right" Click="SaveGames_Click" Margin="0,0,0,8" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Grid x:Name="IntegrationsPage" Visibility="Collapsed" Margin="44,30,44,14" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource PageTitle}"><Run Text="PitLaunch " /><Run Text="integrations" Foreground="{StaticResource AccentBrush}" /></TextBlock>
+                        <TextBlock Text="Connect Discord and the controls you use at the rig." Style="{StaticResource CaptionText}" Margin="1,5,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="CONFIGURE FOR SETUP" Style="{StaticResource EyebrowText}" />
+                        <ComboBox x:Name="IntegrationsProfilePicker" Style="{StaticResource Picker}" Margin="0,6,0,0" SelectionChanged="IntegrationsProfilePicker_SelectionChanged" AutomationProperties.Name="Integration setup" />
+                    </StackPanel>
                 </Grid>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,28,20,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,20">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,15">
+                                    <StackPanel>
+                                        <TextBlock Text="Discord" Style="{StaticResource SectionTitle}" />
+                                        <TextBlock Text="Set the normal voice and audio behavior for this setup. A game preset can override it." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="DiscordLaunchToggle" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="Launch Discord with setup" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="92" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Discord output" Style="{StaticResource CaptionText}" />
+                                        <ComboBox x:Name="DiscordOutputPicker" Style="{StaticResource Picker}" Margin="0,5,0,0" AutomationProperties.Name="Discord output device" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Discord microphone" Style="{StaticResource CaptionText}" />
+                                        <ComboBox x:Name="DiscordMicrophonePicker" Style="{StaticResource Picker}" Margin="0,5,0,0" AutomationProperties.Name="Discord microphone device" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="Volume %" Style="{StaticResource CaptionText}" />
+                                        <TextBox x:Name="DiscordVolumeInput" Style="{StaticResource TextInput}" Margin="0,5,0,0" AutomationProperties.Name="Discord volume" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="In Discord, leave Input Device set to Default so it follows the microphone chosen here. PitLaunch never needs your account or token." Style="{StaticResource CaptionText}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0" />
+                                <Expander Header="Mute and deafen game actions" Margin="0,10,0,0" Foreground="{StaticResource MutedBrush}">
+                                    <StackPanel Margin="0,10,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Discord mute toggle" Style="{StaticResource CaptionText}" />
+                                                <TextBox x:Name="DiscordMuteHotkeyInput" Style="{StaticResource TextInput}" Margin="0,5,0,0" AutomationProperties.Name="Discord mute keybind" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Discord deafen toggle" Style="{StaticResource CaptionText}" />
+                                                <TextBox x:Name="DiscordDeafenHotkeyInput" Style="{StaticResource TextInput}" Margin="0,5,0,0" AutomationProperties.Name="Discord deafen keybind" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="Copy the same shortcuts from Discord. Game presets can press them once on entry and again on exit." Style="{StaticResource CaptionText}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </Expander>
+                                <Button Style="{StaticResource PrimaryButton}" Content="Save Discord" HorizontalAlignment="Right" Click="SaveDiscord_Click" Margin="0,18,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,20">
+                            <Grid>
+                                <StackPanel Margin="0,0,330,0">
+                                    <TextBlock Text="Desk ↔ Rig keyboard shortcut" Style="{StaticResource SectionTitle}" />
+                                    <TextBlock Text="One global shortcut toggles between your Desk and Sim Racing setups." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBox x:Name="ToggleHotkeyInput" Width="220" Style="{StaticResource TextInput}" IsReadOnly="True" IsReadOnlyCaretVisible="False" Cursor="Hand" AutomationProperties.Name="Desk and Rig toggle hotkey" ToolTip="Click here, then press the key combination. Backspace clears it." PreviewKeyDown="ToggleHotkeyInput_PreviewKeyDown" PreviewKeyUp="ToggleHotkeyInput_PreviewKeyUp" LostKeyboardFocus="ToggleHotkeyInput_LostKeyboardFocus" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="Save shortcut" Click="SaveToggleHotkey_Click" Margin="10,0,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource SectionPanel}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Border Width="38" Height="38" CornerRadius="8" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Left"><TextBlock Text="&#xE7F8;" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource AccentBrush}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="{StaticResource AccentSoftBrush}" CornerRadius="5" Padding="7,3"><TextBlock Text="READY" Foreground="{StaticResource AccentBrush}" FontSize="9" FontWeight="Bold" /></Border>
+                                    </Grid>
+                                    <TextBlock Text="Stream Deck" Style="{StaticResource SectionTitle}" Margin="0,14,0,0" />
+                                    <TextBlock Text="Install the plugin here, then choose one of your PitLaunch setups for a key—or use Toggle Desk / Rig." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                    <Button x:Name="InstallStreamDeckPluginButton" Style="{StaticResource PrimaryButton}" Content="Install plugin" Click="InstallStreamDeckPlugin_Click" HorizontalAlignment="Left" Margin="0,14,0,0" AutomationProperties.Name="Install Stream Deck plugin" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Style="{StaticResource SectionPanel}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Border Width="38" Height="38" CornerRadius="8" Background="{StaticResource InfoSoftBrush}" HorizontalAlignment="Left"><TextBlock Text="&#xE8EA;" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource InfoBrush}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="{StaticResource InfoSoftBrush}" CornerRadius="5" Padding="7,3"><TextBlock Text="OPTIONAL" Foreground="{StaticResource InfoBrush}" FontSize="9" FontWeight="Bold" /></Border>
+                                    </Grid>
+                                    <TextBlock Text="Stream Deck Mobile" Style="{StaticResource SectionTitle}" Margin="0,14,0,0" />
+                                    <TextBlock Text="Use Elgato's phone app as a button deck or emulator. Configure the same PitLaunch actions there—no separate PitLaunch phone pairing is needed." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
 
             <Grid x:Name="SettingsPage" Visibility="Collapsed" Margin="44,30,44,14" RenderTransformOrigin="0.5,0.5">
@@ -866,7 +1088,7 @@
                 <Grid>
                     <StackPanel>
                         <TextBlock Style="{StaticResource PageTitle}"><Run Text="PitLaunch " /><Run Text="Settings" Foreground="{StaticResource AccentBrush}" /></TextBlock>
-                        <TextBlock Text="Startup, automatic switching, and support tools." Style="{StaticResource CaptionText}" Margin="1,5,0,0" />
+                        <TextBlock Text="Startup, updates, safety, and support tools." Style="{StaticResource CaptionText}" Margin="1,5,0,0" />
                     </StackPanel>
                 </Grid>
 
@@ -913,7 +1135,7 @@
                             <StackPanel>
                                 <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,0,0,1" Padding="0,12">
                                     <Grid>
-                                        <StackPanel Margin="0,0,80,0"><TextBlock Text="Confirm before switching" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Beta safety check before displays or sound devices change." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" /></StackPanel>
+                                        <StackPanel Margin="0,0,80,0"><TextBlock Text="Confirm before switching" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Safety check before a manual display or sound-device change." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" /></StackPanel>
                                         <CheckBox x:Name="ConfirmSwitchToggle" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="Ask before switching setups" />
                                     </Grid>
                                 </Border>
@@ -928,30 +1150,6 @@
                                         <StackPanel Margin="0,0,190,0"><TextBlock Text="Emergency keyboard shortcut" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Works while PitLaunch is running, even when its window is hidden." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" /></StackPanel>
                                         <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="5" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource ChromeBrush}" Padding="10,7">
                                             <TextBlock Text="Ctrl + Alt + Shift + F12" FontFamily="Cascadia Mono, Consolas" FontSize="11" FontWeight="SemiBold" />
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="Automatic switching" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,26">
-                            <StackPanel>
-                                <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,0,0,1" Padding="0,12">
-                                    <Grid>
-                                        <StackPanel><TextBlock Text="Detect racing games" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Switch when a process saved in a setup starts or exits." Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel>
-                                        <CheckBox x:Name="DetectionToggle" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="Detect saved game processes" />
-                                    </Grid>
-                                </Border>
-                                <Border Padding="0,14">
-                                    <Grid>
-                                        <StackPanel><TextBlock Text="Detection interval" FontWeight="SemiBold" FontSize="13" /><TextBlock Text="Seconds between process checks." Style="{StaticResource CaptionText}" Margin="0,4,0,0" /></StackPanel>
-                                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="6" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource ChromeBrush}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Style="{StaticResource IconButton}" Content="&#xE738;" ToolTip="Decrease interval" Click="PollDown_Click" Width="36" Height="36" />
-                                                <TextBlock x:Name="PollValue" Width="40" TextAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" />
-                                                <Button Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="Increase interval" Click="PollUp_Click" Width="36" Height="36" />
-                                            </StackPanel>
                                         </Border>
                                     </Grid>
                                 </Border>
@@ -982,10 +1180,11 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <StackPanel Margin="0,0,20,0">
-                                    <TextBlock Text="PitLaunch Beta 0.9.1" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock x:Name="DiagnosticsVersionText" FontWeight="SemiBold" FontSize="13" />
                                     <TextBlock Text="Open saved profiles or the activity log when troubleshooting." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource PrimaryButton}" Content="Export support bundle" Click="ExportSupportBundle_Click" Margin="0,0,8,0" />
                                     <Button Style="{StaticResource SecondaryButton}" Content="Data folder" Click="OpenData_Click" Margin="0,0,8,0" />
                                     <Button Style="{StaticResource SecondaryButton}" Content="Activity log" Click="OpenLog_Click" />
                                 </StackPanel>
@@ -1125,7 +1324,7 @@
                             <Image Source="/PitLaunch;component/assets/pitlaunch-mark.png" Width="32" Height="32" Stretch="Uniform" Margin="0,0,12,0" />
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Create setup" FontSize="20" FontWeight="SemiBold" />
-                                <TextBlock x:Name="SetupGuideStepLabel" Text="STEP 1 OF 2" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" Margin="0,4,0,0" />
+                                <TextBlock x:Name="SetupGuideStepLabel" Text="STEP 1 OF 4" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" Margin="0,4,0,0" />
                             </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="&#xE8BB;" ToolTip="Cancel setup" Click="SetupGuideCancel_Click" AutomationProperties.Name="Cancel setup guide" />
@@ -1135,8 +1334,8 @@
                         <Grid x:Name="SetupGuideIdentityStep">
                             <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                             <StackPanel>
-                                <TextBlock Text="What are you setting up?" FontSize="18" FontWeight="SemiBold" />
-                                <TextBlock Text="Choose the place you are preparing now." Style="{StaticResource CaptionText}" Margin="0,5,0,14" />
+                                <TextBlock Text="Name the place in front of you" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="Pick where you are sitting now. You can add the other place afterward." Style="{StaticResource CaptionText}" Margin="0,5,0,14" />
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <RadioButton x:Name="SetupDeskChoice" GroupName="SetupGuideType" Style="{StaticResource SegmentedChoice}" Checked="SetupGuideType_Checked" AutomationProperties.Name="Desk setup">
@@ -1155,9 +1354,10 @@
 
                                 <Grid Margin="0,18,0,0">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="Setup name" Style="{StaticResource CaptionText}" />
+                                    <StackPanel x:Name="SetupGuideNameHost">
+                                        <TextBlock Text="Button name" Style="{StaticResource CaptionText}" />
                                         <TextBox x:Name="SetupGuideName" Style="{StaticResource TextInput}" Margin="0,5,0,0" MaxLength="60" AutomationProperties.Name="New setup name" />
+                                        <TextBlock Text="This is the name you will press later." Style="{StaticResource CaptionText}" FontSize="11" Margin="2,5,0,0" />
                                     </StackPanel>
                                     <StackPanel x:Name="SetupGuideVariantHost" Grid.Column="2">
                                         <TextBlock Text="Rig display variant" Style="{StaticResource CaptionText}" />
@@ -1168,12 +1368,12 @@
                             </StackPanel>
                         </Grid>
 
-                        <Grid x:Name="SetupGuidePrepareStep" Visibility="Collapsed" Opacity="0">
+                        <Grid x:Name="SetupGuideDisplayStep" Visibility="Collapsed" Opacity="0">
                             <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel Margin="0,0,6,0">
-                                    <TextBlock x:Name="SetupGuidePrepareTitle" Text="Choose this setup's hardware" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="PitLaunch found the devices connected to this PC. Choose what belongs to this setup; nothing changes until you create it." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,5,0,15" TextWrapping="Wrap" />
+                                    <TextBlock Text="Choose the screens to use" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="Click each screen that should be on here, then choose the main screen and arrangement." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,5,0,15" TextWrapping="Wrap" />
 
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="246" /></Grid.ColumnDefinitions>
@@ -1211,32 +1411,73 @@
                                         </Border>
                                     </Grid>
 
-                                    <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,1,0,0" Margin="0,17,0,0" Padding="0,15,0,0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="Sound output" FontSize="13" FontWeight="SemiBold" />
-                                                <TextBlock Text="Games, music, and calls use this device." Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
-                                                <ComboBox x:Name="SetupGuidePlaybackPicker" Style="{StaticResource Picker}" Margin="0,7,0,0" AutomationProperties.Name="Setup sound output" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="Microphone" FontSize="13" FontWeight="SemiBold" />
-                                                <TextBlock Text="Your default input for this setup." Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
-                                                <ComboBox x:Name="SetupGuideMicrophonePicker" Style="{StaticResource Picker}" Margin="0,7,0,0" AutomationProperties.Name="Setup microphone" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <Border x:Name="SetupGuideValidationStrip" CornerRadius="6" Background="{StaticResource InfoSoftBrush}" BorderBrush="#453A78" BorderThickness="1" Padding="12,10" Margin="0,15,0,0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                            <ui:SymbolIcon Symbol="ShieldCheckmark24" Foreground="{StaticResource InfoBrush}" FontSize="16" VerticalAlignment="Center" />
-                                            <TextBlock x:Name="SetupGuideValidationText" Grid.Column="1" Text="PitLaunch will validate this plan with Windows before saving or switching." FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                        </Grid>
-                                    </Border>
                                     <TextBlock x:Name="SetupGuideHardwareError" Foreground="{StaticResource ErrorBrush}" FontSize="12" FontWeight="SemiBold" Margin="2,9,0,0" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive" TextWrapping="Wrap" />
                                 </StackPanel>
                             </ScrollViewer>
+                        </Grid>
+
+                        <Grid x:Name="SetupGuideAudioStep" Visibility="Collapsed" Opacity="0">
+                            <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Choose the sound for this place" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="Pick what Windows should use when you switch here. The current devices are already selected." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,5,0,18" TextWrapping="Wrap" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource SectionPanel}" Padding="18">
+                                        <StackPanel>
+                                            <ui:SymbolIcon Symbol="Speaker224" FontSize="23" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left" />
+                                            <TextBlock Text="Speakers or headset" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,0" />
+                                            <TextBlock Text="Games, music, Discord, and normal Windows sound." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                            <ComboBox x:Name="SetupGuidePlaybackPicker" Style="{StaticResource Picker}" Margin="0,12,0,0" AutomationProperties.Name="Setup sound output" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource SectionPanel}" Padding="18">
+                                        <StackPanel>
+                                            <ui:SymbolIcon Symbol="Mic24" FontSize="23" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Left" />
+                                            <TextBlock Text="Microphone" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,0" />
+                                            <TextBlock Text="The input used for voice chat and recording here." Style="{StaticResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                            <ComboBox x:Name="SetupGuideMicrophonePicker" Style="{StaticResource Picker}" Margin="0,12,0,0" AutomationProperties.Name="Setup microphone" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="6" Padding="12,9" Margin="0,15,0,0">
+                                    <TextBlock Text="Tip: choose the device you would select in Windows right now. You can change individual app audio later." FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="SetupGuideReviewStep" Visibility="Collapsed" Opacity="0">
+                            <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Check the setup before creating it" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="If this matches the place in front of you, PitLaunch is ready to save and switch." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,5,0,18" />
+                                <Border Style="{StaticResource SectionPanel}" Padding="18">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="SETUP" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" />
+                                            <TextBlock x:Name="SetupGuideReviewName" FontSize="18" FontWeight="SemiBold" Margin="0,7,0,0" />
+                                            <TextBlock x:Name="SetupGuideReviewType" Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
+                                            <TextBlock Text="SCREENS" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" Margin="0,17,0,0" />
+                                            <TextBlock x:Name="SetupGuideReviewDisplays" FontSize="13" FontWeight="SemiBold" Margin="0,7,0,0" TextWrapping="Wrap" />
+                                            <TextBlock x:Name="SetupGuideReviewLayout" Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="SOUND OUTPUT" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" />
+                                            <TextBlock x:Name="SetupGuideReviewOutput" FontSize="13" FontWeight="SemiBold" Margin="0,7,0,0" TextWrapping="Wrap" />
+                                            <TextBlock Text="MICROPHONE" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" Margin="0,17,0,0" />
+                                            <TextBlock x:Name="SetupGuideReviewMicrophone" FontSize="13" FontWeight="SemiBold" Margin="0,7,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="SetupGuideValidationStrip" CornerRadius="6" Background="{StaticResource InfoSoftBrush}" BorderBrush="#453A78" BorderThickness="1" Padding="12,10" Margin="0,15,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <ui:SymbolIcon Symbol="ShieldCheckmark24" Foreground="{StaticResource InfoBrush}" FontSize="16" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="SetupGuideValidationText" Grid.Column="1" Text="Ready. Create it when this matches the place in front of you." FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
                         </Grid>
                     </Grid>
 
@@ -1249,6 +1490,133 @@
                         </StackPanel>
                     </Grid>
                 </Grid>
+            </Border>
+        </Grid>
+
+        <!-- First run starts a hands-on setup. The real controls teach the workflow; this screen
+             only makes sure the hardware is connected before device discovery begins. -->
+        <Grid x:Name="OnboardingLayer" Grid.RowSpan="3" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0" Background="#F20A0C0E">
+            <Border Width="660" MaxHeight="500" Padding="0" CornerRadius="12" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                    <Grid Margin="28,24,28,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="/PitLaunch;component/assets/pitlaunch-mark.png" Width="34" Height="34" Stretch="Uniform" Margin="0,0,12,0" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="PITLAUNCH QUICK START" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" />
+                                <TextBlock Text="GUIDED SETUP" FontSize="11" Foreground="{StaticResource FaintBrush}" Margin="0,3,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Button Style="{StaticResource QuietButton}" Content="Skip guide" HorizontalAlignment="Right" VerticalAlignment="Top" Click="OnboardingSkip_Click" AutomationProperties.Name="Skip first-run guide" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="38,28,38,24" ClipToBounds="True">
+                        <Grid x:Name="OnboardingWelcomeStep">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                                <Border Width="82" Height="82" CornerRadius="41" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Center" Margin="0,0,0,22">
+                                    <TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons" FontSize="34" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="Let's build your first setup" FontSize="29" FontWeight="SemiBold" TextAlignment="Center" />
+                                <TextBlock Text="Connect the screens and sound devices you want to use here. Then follow the real controls—one decision per page." Style="{StaticResource CaptionText}" FontSize="14" LineHeight="21" TextWrapping="Wrap" TextAlignment="Center" Margin="24,12,24,0" />
+                                <Border Background="{StaticResource InfoSoftBrush}" BorderBrush="#453A78" BorderThickness="1" CornerRadius="7" Padding="14,11" Margin="0,24,0,0">
+                                    <TextBlock Text="Nothing changes until you press Create and switch." FontSize="12" Foreground="{StaticResource MutedBrush}" TextAlignment="Center" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="OnboardingRememberStep" Visibility="Collapsed" Opacity="0">
+                            <StackPanel>
+                                <TextBlock Text="What PitLaunch remembers" FontSize="25" FontWeight="SemiBold" />
+                                <TextBlock Text="Each setup is a complete working environment—not only a monitor preset." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,7,0,18" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="12" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                    <Border Style="{StaticResource SectionPanel}" Padding="16">
+                                        <StackPanel><TextBlock Text="&#xE7F4;  Screens" FontFamily="Segoe UI, Segoe Fluent Icons" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" /><TextBlock Text="Which displays are on, their layout, resolution, refresh rate, and main screen." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,7,0,0" /></StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource SectionPanel}" Padding="16">
+                                        <StackPanel><TextBlock Text="&#xE767;  Sound" FontFamily="Segoe UI, Segoe Fluent Icons" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" /><TextBlock Text="Speakers or headset, communications device, microphone, and app audio preferences." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,7,0,0" /></StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="2" Style="{StaticResource SectionPanel}" Padding="16">
+                                        <StackPanel><TextBlock Text="&#xE8A9;  Apps and windows" FontFamily="Segoe UI, Segoe Fluent Icons" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" /><TextBlock Text="Launch order, apps to close, and where your normal application windows belong." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,7,0,0" /></StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource SectionPanel}" Padding="16">
+                                        <StackPanel><TextBlock Text="&#xE7FC;  Rig session" FontFamily="Segoe UI, Segoe Fluent Icons" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" /><TextBlock Text="Expected wheel and pedals, power plan, HDR, keep-awake, hotkeys, and game detection." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,7,0,0" /></StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="OnboardingPrepareStep" Visibility="Collapsed" Opacity="0">
+                            <StackPanel>
+                                <TextBlock Text="Prepare the first place" FontSize="25" FontWeight="SemiBold" />
+                                <TextBlock Text="Start with whichever place you are using now—Desk or Sim Racing." Style="{StaticResource CaptionText}" FontSize="13" Margin="0,7,0,22" />
+                                <Border Style="{StaticResource SectionPanel}" Padding="20,18">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,16">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Border Width="26" Height="26" CornerRadius="13" Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Top"><TextBlock Text="1" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                            <StackPanel Grid.Column="1"><TextBlock Text="Connect the hardware for this setup" FontWeight="SemiBold" FontSize="14" /><TextBlock Text="Plug in the screens, headset or speakers, microphone, wheel, pedals, and dock you expect to use." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,16">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Border Width="26" Height="26" CornerRadius="13" Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Top"><TextBlock Text="2" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                            <StackPanel Grid.Column="1"><TextBlock Text="Make sure Windows can see everything" FontWeight="SemiBold" FontSize="14" /><TextBlock Text="A screen may be disabled, but it must be connected. PitLaunch will let you choose the exact layout in the next step." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Border Width="26" Height="26" CornerRadius="13" Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Top"><TextBlock Text="3" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                            <StackPanel Grid.Column="1"><TextBlock Text="Leave important windows open" FontWeight="SemiBold" FontSize="14" /><TextBlock Text="PitLaunch captures their current positions and learns them again whenever you leave the setup." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="OnboardingCreateStep" Visibility="Collapsed" Opacity="0">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                                <Border Width="72" Height="72" CornerRadius="36" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Center" Margin="0,0,0,20">
+                                    <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="29" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="Create your first setup" FontSize="27" FontWeight="SemiBold" TextAlignment="Center" />
+                                <TextBlock Text="The next wizard asks whether this is Desk or Sim Racing, then lets you choose its screens, layout, speakers, and microphone." Style="{StaticResource CaptionText}" FontSize="14" LineHeight="21" TextWrapping="Wrap" TextAlignment="Center" Margin="18,11,18,0" />
+                                <Border Style="{StaticResource SectionPanel}" Padding="16,13" Margin="0,22,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="{StaticResource InfoBrush}" Margin="0,1,10,0" />
+                                        <TextBlock Text="After it is saved, click Create setup once more at the other place. With both saved, Desk ↔ Rig, game detection, and Stream Deck can switch between them." Style="{StaticResource CaptionText}" TextWrapping="Wrap" MaxWidth="520" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Row="2" Margin="28,0,28,25">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <ProgressBar Height="3" Minimum="1" Maximum="1" Value="1" Visibility="Collapsed" />
+                        <Grid Grid.Row="1" Margin="0,18,0,0">
+                            <Button x:Name="OnboardingStartButton" Style="{StaticResource PrimaryButton}" MinWidth="160" Content="Start guided setup" HorizontalAlignment="Right" Click="OnboardingStart_Click" AutomationProperties.Name="Start guided setup" />
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- A minimum-version policy can intentionally block the old app. There is no dismiss
+             action: the user installs the safe release or follows the download link. -->
+        <Grid x:Name="RequiredUpdateLayer" Grid.RowSpan="3" Grid.ColumnSpan="2" Visibility="Collapsed" Background="#F20A0C0E">
+            <Border Width="500" Padding="30,28" CornerRadius="10" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Center" Margin="0,0,0,17">
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe Fluent Icons" FontSize="22" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="PitLaunch needs an update" FontSize="22" FontWeight="SemiBold" TextAlignment="Center" />
+                    <TextBlock x:Name="RequiredUpdateVersionText" Style="{StaticResource EyebrowText}" Foreground="{StaticResource AccentBrush}" TextAlignment="Center" Margin="0,8,0,0" />
+                    <TextBlock x:Name="RequiredUpdateBody" Style="{StaticResource CaptionText}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,14,0,20" />
+                    <ProgressBar x:Name="RequiredUpdateProgress" Height="4" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,14" Background="{StaticResource ChromeBrush}" Foreground="{StaticResource AccentBrush}" BorderThickness="0" />
+                    <Button x:Name="RequiredUpdateButton" Style="{StaticResource PrimaryButton}" Height="42" HorizontalAlignment="Stretch" Content="Install update and restart" Click="RequiredUpdate_Click" />
+                    <TextBlock Text="Your profiles stay on this PC and are kept during the update." Style="{StaticResource CaptionText}" FontSize="11" TextAlignment="Center" Margin="0,12,0,0" />
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

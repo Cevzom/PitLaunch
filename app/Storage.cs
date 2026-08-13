@@ -161,6 +161,19 @@ internal sealed class ProfileRepository
         document.Runtime ??= new RuntimeState();
         document.Profiles ??= [];
         document.Settings.GamePollSeconds = Math.Clamp(document.Settings.GamePollSeconds, 1, 30);
+        document.Settings.GameExitGraceSeconds = Math.Clamp(document.Settings.GameExitGraceSeconds, 0, 300);
+        document.Settings.ToggleHotkey ??= string.Empty;
+        // People upgrading from an older build already learned the app by creating a setup.
+        // Only a genuinely empty first run should open the welcome guide.
+        if (document.Profiles.Count > 0) document.Settings.OnboardingCompleted = true;
+
+        if (document.Runtime.LastSwitchCheckpoint is SwitchCheckpoint checkpoint)
+        {
+            checkpoint.Display ??= new DisplaySnapshot();
+            checkpoint.Display.Monitors ??= [];
+            checkpoint.Audio ??= new AudioSnapshot();
+            checkpoint.PowerPlanGuid ??= string.Empty;
+        }
 
         foreach (Profile profile in document.Profiles)
         {
@@ -173,7 +186,84 @@ internal sealed class ProfileRepository
             profile.Windows ??= [];
             profile.Apps ??= [];
             profile.GameProcesses ??= [];
+            profile.GamePresets ??= [];
+            profile.Discord ??= new DiscordSettings();
+            profile.ExpectedControllers ??= [];
+            profile.PowerPlanGuid ??= string.Empty;
+            NormalizeDiscord(profile.Discord);
+            foreach (AppRule app in profile.Apps) NormalizeAppRule(app);
+
+            profile.GameProcesses = profile.GameProcesses
+                .Select(GameDetectionService.NormalizeProcessName)
+                .Where(process => !string.IsNullOrWhiteSpace(process))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (string legacyProcess in profile.GameProcesses)
+            {
+                if (!profile.GamePresets.Any(preset =>
+                        string.Equals(GameDetectionService.NormalizeProcessName(preset.ProcessName), legacyProcess,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    profile.GamePresets.Add(new GamePreset { ProcessName = legacyProcess });
+                }
+            }
+
+            HashSet<Guid> presetIds = [];
+            foreach (GamePreset preset in profile.GamePresets)
+            {
+                if (preset.Id == Guid.Empty || !presetIds.Add(preset.Id))
+                {
+                    preset.Id = Guid.NewGuid();
+                    presetIds.Add(preset.Id);
+                }
+                preset.ProcessName = GameDetectionService.NormalizeProcessName(preset.ProcessName);
+                preset.AudioDeviceId ??= string.Empty;
+                if (preset.VolumePercent.HasValue)
+                    preset.VolumePercent = Math.Clamp(preset.VolumePercent.Value, 0, 100);
+                preset.Apps ??= [];
+                foreach (AppRule app in preset.Apps) NormalizeAppRule(app);
+                preset.Discord ??= new DiscordSettings();
+                NormalizeDiscord(preset.Discord);
+            }
+            profile.GamePresets = profile.GamePresets
+                .Where(preset => !string.IsNullOrWhiteSpace(preset.ProcessName))
+                .GroupBy(preset => preset.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+            profile.GameProcesses = profile.GameProcesses
+                .Concat(profile.GamePresets.Select(preset => preset.ProcessName))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
+
+        if (document.Runtime.ActiveGamePresetId is Guid activePresetId &&
+            !document.Profiles.SelectMany(profile => profile.GamePresets).Any(preset => preset.Id == activePresetId))
+        {
+            document.Runtime.ActiveGamePresetId = null;
+        }
+    }
+
+    private static void NormalizeDiscord(DiscordSettings settings)
+    {
+        settings.OutputDeviceId ??= string.Empty;
+        settings.MicrophoneDeviceId ??= string.Empty;
+        settings.MuteToggleHotkey ??= string.Empty;
+        settings.DeafenToggleHotkey ??= string.Empty;
+        if (settings.VolumePercent.HasValue)
+            settings.VolumePercent = Math.Clamp(settings.VolumePercent.Value, 0, 100);
+    }
+
+    private static void NormalizeAppRule(AppRule app)
+    {
+        app.ExecutablePath ??= string.Empty;
+        app.Arguments ??= string.Empty;
+        app.WorkingDirectory ??= string.Empty;
+        app.AudioDeviceId ??= string.Empty;
+        app.LaunchOrder = Math.Clamp(app.LaunchOrder, -10000, 10000);
+        app.DelayAfterStartSeconds = Math.Clamp(app.DelayAfterStartSeconds, 0, 300);
+        app.ReadyTimeoutSeconds = Math.Clamp(app.ReadyTimeoutSeconds, 1, 300);
+        if (app.VolumePercent.HasValue)
+            app.VolumePercent = Math.Clamp(app.VolumePercent.Value, 0, 100);
     }
 }
 

@@ -10,11 +10,11 @@
     <ApplicationManifest>app\app.manifest</ApplicationManifest>
     <AssemblyName>PitLaunch</AssemblyName>
     <RootNamespace>PitLaunch</RootNamespace>
-    <Version>0.9.9-beta.1</Version>
-    <AssemblyVersion>0.9.9.0</AssemblyVersion>
-    <FileVersion>0.9.9.0</FileVersion>
-    <InformationalVersion>0.9.9-beta.1</InformationalVersion>
-    <Product>PitLaunch Beta</Product>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Product>PitLaunch</Product>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>

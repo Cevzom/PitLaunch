@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User guide
+    url: https://github.com/Cevzom/PitLaunch/blob/main/docs/USER-GUIDE.md
+    about: Setup, safety, update, and troubleshooting instructions.

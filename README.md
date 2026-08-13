@@ -4,129 +4,74 @@
 
 # PitLaunch
 
-### One PC. Desk and sim rig. One click between them.
+**Switch one Windows PC between your desk and sim rig—displays, audio, windows, apps, and session hardware—in one safe move.**
 
-<br>
+<img src="docs/images/setups.png" alt="PitLaunch setups screen" width="860" />
 
-[![Download](https://img.shields.io/badge/Download_for_Windows-20B8F0?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)
-
-<sub>Windows 10 / 11 &nbsp;·&nbsp; no admin needed &nbsp;·&nbsp; updates itself &nbsp;·&nbsp; MIT</sub>
-
-<br><br>
-
-<img src="docs/images/setups.png" alt="PitLaunch setups" width="860" />
+<p>
+  <img src="docs/images/profile.png" alt="PitLaunch setup details" width="425" />
+  <img src="docs/images/settings.png" alt="PitLaunch settings" width="425" />
+</p>
 
 </div>
-
-<br>
 
 ## What it does
 
-Your rig and your desk want different screens, different sound, different windows.
-PitLaunch remembers both and moves the whole machine between them.
+- Captures Desk and Sim Racing display layouts, including the primary screen, resolution, refresh rate, and position.
+- Switches playback, microphone, per-app output and volume, power plan, HDR preference, and sleep prevention.
+- Restores window positions and launches apps in a chosen order with delays and readiness checks.
+- Detects configured games even when they start outside PitLaunch, then applies game-specific app, audio, volume, and Discord overrides.
+- Checks expected controllers before a session and exposes setup, toggle, status, and display-recovery actions to Stream Deck.
+- Keeps manual switches deliberate while automatic game, hotkey, CLI, and Stream Deck switches remain prompt-free.
+- Provides preflight checks, restart-safe Undo, rollback, and an emergency display-recovery shortcut.
+- Stores setups locally. No account and no telemetry.
 
-|  |  |
-|---|---|
-| **Screens** | Which monitors, what resolution, refresh rate and layout |
-| **Sound** | Speakers, headset and mic, per setup |
-| **Windows** | Puts your windows back where they were |
-| **Apps** | Starts what you need, closes what you don't |
-| **Games** | Finds your installed games, launch one and it switches |
-| **Hardware** | Tells you if the wheel or pedals aren't plugged in |
-| **Stay awake** | No screen blanking mid-stint |
-| **Hotkeys** | A shortcut per setup |
+## How it compares
 
-<br>
+| Best fit when you need… | PitLaunch | DisplayMagician | SimLauncher |
+|---|---|---|---|
+| Whole-PC Desk ↔ Rig switching: displays, audio, window positions, apps, hardware readiness, game detection, Discord, Stream Deck, safety and recovery | **Strongest fit** | Display-first workflow | Launcher-first workflow |
+| NVIDIA Surround / AMD Eyefinity / cloned displays and unusual display hardware | Windows-visible layouts only | **Strongest fit** | Different focus |
+| A large game/companion launcher: 27 sims, drag-to-reorder and launch delays | Game presets, not a 27-sim catalog | Different focus | **Strongest fit** |
 
-## A setup, in full
+**DisplayMagician** is stronger for NVIDIA Surround, AMD Eyefinity, cloned displays, and unusual display hardware. **SimLauncher** is stronger as a large game and companion-app launcher, with 27 sims, drag-to-reorder, and launch delays. **PitLaunch** is the whole-PC Desk ↔ Rig switcher: displays, audio, window positions, apps, hardware readiness, game detection, Discord, Stream Deck, safety, and recovery move as one setup.
 
-Every setup is captured from what the machine is actually doing — not typed in by hand.
-Open one and you see exactly what it will restore.
+PitLaunch 1.0 behavior in this comparison was verified locally on the launch machine. Competitor strengths are fair summaries of their official documentation and were not hardware-tested here. See the source notes in [docs/COMPETITOR-NOTES.md](docs/COMPETITOR-NOTES.md); “Different focus” does not mean unsupported or unreliable.
 
-<div align="center">
-<img src="docs/images/profile.png" alt="A saved setup" width="860" />
-</div>
+## Download
 
-<br>
+[![Download PitLaunch for Windows](https://img.shields.io/badge/Download_PitLaunch_1.0-20B8F0?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe)
 
-## Getting started
+- [Windows installer](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe) — self-updating, no administrator access required.
+- [Portable ZIP](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Portable.zip) — runs without installation and does not auto-update.
+- [Stream Deck plugin](https://github.com/Cevzom/PitLaunch/releases/latest/download/com.cevzom.pitlaunch.streamDeckPlugin) — can also be installed from **PitLaunch → Integrations**.
 
-Run the installer. It takes a few seconds, then opens itself. No wizard.
+Windows 10/11 x64 · .NET included · MIT licensed
 
-Click **Create setup**, pick your screens and sound, and save it. Do that once for the desk
-and once for the rig. Then switch from the app, the tray, a hotkey, or automatically when a
-game starts.
+### Windows SmartScreen
 
-> **SmartScreen will warn you** the first time, because PitLaunch isn't code-signed yet.
-> Choose *More info → Run anyway*. Every release lists a SHA256 so you can verify the file.
+PitLaunch 1.0 is not code-signed yet, so SmartScreen may warn on first launch. Choose **More info → Run anyway** only after verifying that you downloaded the file from the official release above.
 
-<br>
+### Verify the SHA256
 
-## Updates
+Every release includes a SHA256 table and a downloadable `SHA256SUMS.txt`. In PowerShell, from the download folder:
 
-Installed copies patch themselves. An **Update available** marker appears in the sidebar, and
-installing downloads only the files that changed — usually **well under 1 MB** instead of the
-full 76 MB.
-
-Already running an older version? Nothing to re-download by hand:
-
-**Settings → Updates → Check for updates → Install and restart.**
-
-Your setups live in `%APPDATA%\PitLaunch`, outside the install folder, so updating never
-touches them.
-
-<div align="center">
-<img src="docs/images/settings.png" alt="Settings" width="860" />
-</div>
-
-<br>
-
-## How this differs
-
-|  | PitLaunch | DisplayMagician | SimLauncher |
-|---|:---:|:---:|:---:|
-| Screens | yes | yes | no |
-| Sound | yes | yes | no |
-| Window positions | yes | no | no |
-| Launch apps | yes | partial | yes |
-| Checks with Windows first | yes | no | no |
-| Rolls back if it fails | yes | no | no |
-
-**DisplayMagician** covers displays and audio, and it is the closest thing to this. Where it
-tends to bite is the switch itself — profiles that apply partially, or don't take, and leave you
-straightening out monitors by hand.
-
-**SimLauncher** and the launchers bundled with wheels only start programs. Your screens and your
-sound are still your problem.
-
-**PitLaunch treats a setup as one object.** Displays, audio, window positions and applications
-move together or not at all. Before it changes anything it asks Windows whether the display
-layout can actually be restored, and if a step fails partway it rolls back — so a bad switch
-can't strand you on a black screen with no way to click anything.
-
-<br>
-
-## Command line
-
-For a Stream Deck, a wheel button, or a shortcut:
-
-```
-PitLaunch.exe --profile "Sim Racing"
-PitLaunch.exe --chooser
-PitLaunch.exe --restore-displays
+```powershell
+Get-FileHash .\PitLaunch-win-Setup.exe -Algorithm SHA256
+Get-Content .\SHA256SUMS.txt
 ```
 
-<br>
+The hash beside `PitLaunch-win-Setup.exe` must match exactly. The portable ZIP and update packages are listed in the same file.
 
-## More
+## Documentation
 
-**[User guide](docs/USER-GUIDE.md)** &nbsp;·&nbsp; **[Releasing](RELEASING.md)** &nbsp;·&nbsp; **[Design notes](DESIGN.md)**
+- [User guide — Hebrew and English](docs/USER-GUIDE.md)
+- [Complete feature list](docs/FINAL-FEATURES.md)
+- [Competitor research and launch-thread replies](docs/COMPETITOR-NOTES.md)
+- [Release process](docs/RELEASING.md)
+- [Design notes](docs/DESIGN.md)
+- [Contributing](CONTRIBUTING.md)
 
-Public beta, used daily on a three-monitor desk and a single-screen rig.
-Found a bug? Send `%APPDATA%\PitLaunch\pitlaunch.log` and what you were doing.
+## License
 
-<br>
-
-<div align="center">
-<sub>MIT licensed &nbsp;·&nbsp; UI set in <a href="https://fonts.google.com/specimen/Cabin">Cabin</a> and <a href="https://fonts.google.com/specimen/Archivo">Archivo</a> (OFL)</sub>
-</div>
+[MIT](LICENSE) © 2026 Cevzom

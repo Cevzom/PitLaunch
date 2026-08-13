@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noImplicitOverride": true,
+    // Stream Deck SDK 2.x uses standard TC39 decorators (ClassDecoratorContext), so
+    // experimentalDecorators must stay OFF or the @action decorator will not type-check.
+    "useDefineForClassFields": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -3,14 +3,13 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Workspace = Split-Path -Parent (Split-Path -Parent $Root)
 $Project = Join-Path $Root "PitLaunch.csproj"
-$Output = Join-Path $Workspace "outputs\PitLaunch-Beta"
+$Output = Join-Path $Workspace "outputs\PitLaunch-Portable"
 $Staging = Join-Path $Root "artifacts\publish"
 # Read the version from the project so the zip name can never go stale against the build.
 $ProjectVersion = ([xml](Get-Content $Project)).Project.PropertyGroup |
     Where-Object { $_.Version } | Select-Object -First 1 -ExpandProperty Version
 if (!$ProjectVersion) { throw "Could not read <Version> from PitLaunch.csproj" }
-$ShortVersion = ($ProjectVersion -split '-')[0]
-$Zip = Join-Path $Workspace "outputs\PitLaunch-Beta-$ShortVersion.zip"
+$Zip = Join-Path $Workspace "outputs\PitLaunch-win-Portable.zip"
 $LocalDotNet = Join-Path $Workspace ".tools\dotnet\dotnet.exe"
 
 function Assert-ChildPath([string]$Path, [string]$Parent) {
@@ -73,6 +72,7 @@ if (!(Test-Path -LiteralPath $PublishedExe)) {
 Copy-Item -LiteralPath $PublishedExe -Destination (Join-Path $Output "PitLaunch.exe") -Force
 Copy-Item -LiteralPath (Join-Path $Root "README.md") -Destination (Join-Path $Output "README.md") -Force
 Copy-Item -LiteralPath (Join-Path $Root "START-HERE.txt") -Destination (Join-Path $Output "START-HERE.txt") -Force
+Copy-Item -LiteralPath (Join-Path $Root "LICENSE") -Destination (Join-Path $Output "LICENSE") -Force
 
 $Exe = Get-Item -LiteralPath (Join-Path $Output "PitLaunch.exe")
 $Hash = (Get-FileHash -LiteralPath $Exe.FullName -Algorithm SHA256).Hash

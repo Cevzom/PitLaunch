@@ -17,12 +17,34 @@ internal sealed class AppSettings
     public bool ConfirmBeforeSwitch { get; set; } = true;
     public bool GameDetectionEnabled { get; set; }
     public int GamePollSeconds { get; set; } = 2;
+
+    /// <summary>
+    /// How long a detected game may disappear before PitLaunch returns to the previous setup.
+    /// This prevents launchers, updates, and short game restarts from causing an unwanted switch.
+    /// </summary>
+    public int GameExitGraceSeconds { get; set; } = 10;
+    public string ToggleHotkey { get; set; } = string.Empty;
+    public bool OnboardingCompleted { get; set; }
 }
 
 internal sealed class RuntimeState
 {
     public Guid? ActiveProfileId { get; set; }
     public DateTimeOffset? LastSwitchUtc { get; set; }
+    public SwitchCheckpoint? LastSwitchCheckpoint { get; set; }
+    public Guid? ActiveGamePresetId { get; set; }
+}
+
+/// <summary>A restart-safe snapshot of the known-good state immediately before a switch.</summary>
+internal sealed class SwitchCheckpoint
+{
+    public DateTimeOffset CapturedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public Guid? ActiveProfileId { get; set; }
+    public DisplaySnapshot Display { get; set; } = new();
+    public AudioSnapshot Audio { get; set; } = new();
+    public bool KeepAwake { get; set; }
+    public string PowerPlanGuid { get; set; } = string.Empty;
+    public bool? EnableHdr { get; set; }
 }
 
 internal sealed class Profile
@@ -39,12 +61,20 @@ internal sealed class Profile
     public List<WindowSnapshot> Windows { get; set; } = [];
     public List<AppRule> Apps { get; set; } = [];
     public List<string> GameProcesses { get; set; } = [];
+    public List<GamePreset> GamePresets { get; set; } = [];
+    public DiscordSettings Discord { get; set; } = new();
 
     /// <summary>Hold the screen awake while this setup is active. Wheel input does not reset the Windows idle timer.</summary>
     public bool KeepAwake { get; set; }
 
     /// <summary>Game controllers this setup expects, by product name. Missing ones are reported on activation.</summary>
     public List<string> ExpectedControllers { get; set; } = [];
+
+    /// <summary>Windows power scheme to activate, or empty to leave the current scheme alone.</summary>
+    public string PowerPlanGuid { get; set; } = string.Empty;
+
+    /// <summary>True/false changes HDR on capable active displays; null leaves HDR unchanged.</summary>
+    public bool? EnableHdr { get; set; }
 
     [JsonIgnore]
     public string CaptureSummary
@@ -178,6 +208,24 @@ internal sealed class AppRule
     public bool ForceClose { get; set; }
     public bool StartHidden { get; set; }
 
+    /// <summary>Lower values start first. Rules with the same value retain their list order.</summary>
+    public int LaunchOrder { get; set; }
+
+    /// <summary>Delay after this application is handled before the next rule starts.</summary>
+    public int DelayAfterStartSeconds { get; set; }
+
+    /// <summary>Wait for the process to become responsive before continuing the sequence.</summary>
+    public bool WaitForReady { get; set; }
+
+    /// <summary>Maximum readiness wait. Defaults to 15 seconds for newly-created rules.</summary>
+    public int ReadyTimeoutSeconds { get; set; } = 15;
+
+    /// <summary>Preferred endpoint for this app. Empty leaves Windows' routing unchanged.</summary>
+    public string AudioDeviceId { get; set; } = string.Empty;
+
+    /// <summary>Per-app session volume from 0-100; null leaves it unchanged.</summary>
+    public int? VolumePercent { get; set; }
+
     [JsonIgnore]
     public string DisplayName
     {
@@ -228,7 +276,7 @@ internal sealed class OperationReport
             int errors = Messages.Count(m => m.Severity == OperationSeverity.Error);
             if (errors > 0) return $"Finished with {errors} error{(errors == 1 ? "" : "s")}";
             if (warnings > 0) return displayRecovery
-                ? $"Displays restored with {warnings} warning{(warnings == 1 ? "" : "s")}" 
+                ? $"Displays restored with {warnings} warning{(warnings == 1 ? "" : "s")}"
                 : $"Switched with {warnings} warning{(warnings == 1 ? "" : "s")}";
             if (displayRecovery) return "All displays restored";
             if (Operation.StartsWith("Capture ", StringComparison.Ordinal)) return "Profile captured";
@@ -244,8 +292,76 @@ internal enum ActivationSource
     Tray,
     Hotkey,
     CommandLine,
+    Integration,
     GameDetected,
     GameExited
 }
 
+/// <summary>
+/// Optional overrides applied only while one detected game is running. The parent profile still
+/// owns displays, power, HDR, and normal applications; a preset changes only the game session.
+/// </summary>
+internal sealed class GamePreset
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string ProcessName { get; set; } = string.Empty;
+    public string AudioDeviceId { get; set; } = string.Empty;
+    public int? VolumePercent { get; set; }
+    public List<AppRule> Apps { get; set; } = [];
+    public bool CustomizeDiscord { get; set; }
+    public DiscordSettings Discord { get; set; } = new();
+    public bool ToggleDiscordMuteForSession { get; set; }
+    public bool ToggleDiscordDeafenForSession { get; set; }
+
+    [JsonIgnore]
+    public bool HasOverrides =>
+        !string.IsNullOrWhiteSpace(AudioDeviceId) ||
+        VolumePercent.HasValue ||
+        Apps.Count > 0 ||
+        CustomizeDiscord ||
+        ToggleDiscordMuteForSession ||
+        ToggleDiscordDeafenForSession;
+}
+
+/// <summary>
+/// Discord controls for a setup or game preset. Output and volume target Discord's process;
+/// microphone changes the Windows communications input, which Discord follows when its input is
+/// set to Default. No account token or bot connection is used.
+/// </summary>
+internal sealed class DiscordSettings
+{
+    public bool LaunchOnActivate { get; set; }
+    public string OutputDeviceId { get; set; } = string.Empty;
+    public string MicrophoneDeviceId { get; set; } = string.Empty;
+    public int? VolumePercent { get; set; }
+    public string MuteToggleHotkey { get; set; } = string.Empty;
+    public string DeafenToggleHotkey { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public bool HasOverrides =>
+        LaunchOnActivate ||
+        !string.IsNullOrWhiteSpace(OutputDeviceId) ||
+        !string.IsNullOrWhiteSpace(MicrophoneDeviceId) ||
+        VolumePercent.HasValue ||
+        !string.IsNullOrWhiteSpace(MuteToggleHotkey) ||
+        !string.IsNullOrWhiteSpace(DeafenToggleHotkey);
+}
+
 internal sealed record ProfileSwitchCompleted(Profile Profile, ActivationSource Source, OperationReport Report);
+
+internal sealed record PowerPlanOption(string Guid, string Name, bool IsActive);
+
+internal sealed record HdrStatus(bool IsSupported, bool? IsEnabled, int SupportedDisplayCount, int ActiveDisplayCount);
+
+internal sealed record ReadinessItem(OperationSeverity Severity, string Area, string Message);
+
+internal sealed class ReadinessReport
+{
+    public List<ReadinessItem> Items { get; } = [];
+    public bool IsReady => Items.All(item => item.Severity == OperationSeverity.Info);
+    public bool CanSwitch => Items.All(item => item.Severity != OperationSeverity.Error);
+
+    public void Info(string area, string message) => Items.Add(new ReadinessItem(OperationSeverity.Info, area, message));
+    public void Warn(string area, string message) => Items.Add(new ReadinessItem(OperationSeverity.Warning, area, message));
+    public void Error(string area, string message) => Items.Add(new ReadinessItem(OperationSeverity.Error, area, message));
+}

@@ -1,8 +1,8 @@
-﻿# PitLaunch Beta 0.9.4 - עברית
+﻿# PitLaunch 1.0 - עברית
 
 PitLaunch היא אפליקציית Windows קלה למחשב שמשמש גם כשולחן עבודה רגיל וגם כסימולטור מרוצים. מגדירים פעם אחת אילו מסכים והתקני שמע שייכים לכל מצב, ולאחר מכן עוברים בין המצבים בלחיצה אחת.
 
-זוהי גרסת בטא. התוכנה עדיין אינה חתומה דיגיטלית, ולכן Windows SmartScreen עשוי להציג אזהרה בהפעלה הראשונה. אין צורך בהרשאות מנהל מערכת; יש להפעיל את PitLaunch באופן רגיל.
+זוהי גרסת 1.0 הציבורית. התוכנה עדיין אינה חתומה דיגיטלית, ולכן Windows SmartScreen עשוי להציג אזהרה בהפעלה הראשונה. אין צורך בהרשאות מנהל מערכת; יש להפעיל את PitLaunch באופן רגיל.
 
 ## התקנה ועדכונים
 
@@ -21,9 +21,9 @@ PitLaunch היא אפליקציית Windows קלה למחשב שמשמש גם כ
 4. לחצו על **Create and switch**. לפני שמירה או שינוי, PitLaunch מבקשת מ-Windows לוודא שתצורת המסכים תקינה.
 5. צרו באותה דרך את המצב השני. מיקומי החלונות נשמרים אוטומטית בעת יציאה מכל מצב.
 
-השתמשו בכפתור **Switch** או בתפריט של PitLaunch באזור ההתראות כדי לעבור בין המצבים. במהלך הבטא האפשרות **Confirm before switching** מופעלת כברירת מחדל, ולכן תתבקשו לאשר לפני שינוי מסכים או שמע.
+השתמשו בכפתור **Switch** או בתפריט של PitLaunch באזור ההתראות כדי לעבור בין המצבים. האפשרות **Confirm before switching** מופעלת כברירת מחדל, ולכן מעבר ידני מבקש אישור לפני שינוי מסכים או שמע. מעברים אוטומטיים של משחק, קיצור דרך, שורת פקודה או Stream Deck אינם מציגים חלון אישור.
 
-## אמצעי בטיחות בבטא
+## אמצעי בטיחות
 
 - הכפתור **Restore displays** בסרגל הצד או בהגדרות מפעיל את כל המסכים ש-Windows מזהה כרגע. הוא אינו משנה את המצבים השמורים.
 - קיצור החירום **Ctrl+Alt+Shift+F12** משחזר את המסכים כאשר PitLaunch פועלת, גם כשהחלון מוסתר באזור ההתראות.
@@ -76,11 +76,11 @@ PitLaunch.exe --exit
 
 ---
 
-# PitLaunch Beta 0.9.4 - English
+# PitLaunch 1.0 - English
 
 PitLaunch is a lightweight Windows profile switcher for a PC shared between a desk and a sim rig. Choose the screens and sound devices for each setup once, then restore the whole PC with one click.
 
-This is a beta build. PitLaunch is unsigned, so Windows SmartScreen may show a warning on first launch. PitLaunch does not need administrator access; run it normally.
+This is the public 1.0 release. PitLaunch is unsigned, so Windows SmartScreen may show a warning on first launch. PitLaunch does not need administrator access; run it normally.
 
 ## Installing and updating
 
@@ -91,7 +91,15 @@ Two ways to install:
 
 To update, open **Settings → Updates → Check for updates**, then **Install and restart**. Profiles are stored outside the install folder, so updating or uninstalling never removes your saved setups.
 
+If a release is marked as the minimum safe version, an older compatible build shows a required-update screen instead of continuing. Installed copies update in place; portable copies open the latest installer page. If the policy server cannot be reached, PitLaunch fails open and continues normally.
+
 ## First setup
+
+On a new installation, PitLaunch first asks you to connect the devices for the place you are using.
+Choose **Start guided setup** to work through the real controls: name the place, choose Desk or
+Sim racing, click the displays that belong to it, set the main screen and arrangement, choose sound,
+then review and create it. **Back** keeps every choice while you make corrections. **Skip guide**
+saves the choice without creating anything. Existing installations with a saved setup skip the guide.
 
 1. Connect the desk and rig devices to the PC, then open `PitLaunch.exe`. A monitor may be disabled in Windows; PitLaunch still discovers its preferred resolution and refresh rate while it is connected.
 2. Click **Create setup** and choose **Desk** or **Sim racing**. Sim setups can be Single screen, Dual screen, Triple screen, Quad screen, Ultrawide, or VR.
@@ -99,9 +107,11 @@ To update, open **Settings → Updates → Check for updates**, then **Install a
 4. Click **Create and switch**. PitLaunch asks Windows to validate the exact display plan before saving or changing anything.
 5. Create the other setup the same way. Window positions begin learning automatically as you leave each setup, so there is no separate window-arranging step during setup.
 
-Use **Switch** or the PitLaunch tray menu to change setups. During beta, **Confirm before switching** defaults to on. PitLaunch saves the windows from the setup you are leaving, restores the selected display and audio state, starts its configured apps, restores window positions, and then stays quietly in the tray.
+Use **Switch** or the PitLaunch tray menu to change setups. **Confirm before switching** defaults to on for manual switches. Automatic game, hotkey, command-line, and Stream Deck switches remain prompt-free. PitLaunch saves the windows from the setup you are leaving, restores the selected display and audio state, starts its configured apps, restores window positions, and then stays quietly in the tray.
 
-## Beta safety controls
+After both setups exist, **Desk ↔ Rig** switches to the opposite one without choosing it again. The same action is available from the tray, a configurable global shortcut, the command line, and Stream Deck. **Undo** restores the displays, audio, HDR, power plan, and keep-awake state from before the previous switch.
+
+## Safety controls
 
 - **Restore displays** in the sidebar or Settings enables every monitor Windows currently detects. It does not overwrite saved setups.
 - Press **Ctrl+Alt+Shift+F12** for emergency display recovery when PitLaunch is running, even if its window is hidden in the tray.
@@ -122,13 +132,29 @@ The file is normal JSON and can be edited while PitLaunch is closed. It supports
 
 Each profile can include:
 
+Use the sidebar by task: **Setups** holds captured hardware, session options, the setup hotkey, and applications; **Games** holds automatic switching and per-game presets; **Integrations** holds Discord plus Stream Deck guidance; **Settings** is reserved for app-wide startup, detection, updates, and diagnostics. Games and Integrations each have a setup picker at the top, so edits are saved to the setup you intended.
+
 - Full Windows display topology built and validated through the CCD API, including enabled screens, primary display, positions, resolution, refresh rate, rotation, and scaling.
 - Default playback, communications, and microphone devices. These are editable on the profile page: pick a different device from the dropdowns and save, without recapturing the whole profile.
 - Positions for normal top-level application windows.
 - Applications to start on activation and optionally close on deactivation.
 - Process names that automatically activate the profile while a game is running. The process field lists the apps currently running on the PC, and typing a name manually still works.
+- A compact game preset under each process. Expand **Customize this game** to choose game output and volume, launch extra tools, close those tools when the game ends, or override Discord only for that title. Unchanged fields inherit the normal setup, and the normal settings are reapplied when the game closes—even when the setup was already active before the game started.
 - A global hotkey, such as `Ctrl+Alt+F9`. Click the hotkey box and press the actual key combination to record it; Backspace clears it.
 - A setup identity and display variant so the startup chooser clearly distinguishes a desk from a single-screen, triple-screen, ultrawide, or VR sim rig.
+- A Windows power plan, HDR preference, and keep-awake behavior for the active session.
+- Expected wheels, pedals, controllers, and button boxes. **Check setup** shows anything missing before a switch.
+- Ordered app startup with an optional delay and ready timeout between applications.
+- Per-app output-device preference and volume. This is useful for rules such as Discord on a headset while the game uses the rig speakers; routing is best-effort because support differs between Windows builds, while active-session volume uses the standard Windows audio API.
+- Dedicated Discord settings for each setup: optionally launch Discord, select its process output, set its session volume, and choose the Windows communications microphone. A game preset can inherit these values or override them. Enter the same mute/deafen keybinds configured in Discord to let a preset send each toggle once when the game starts and again when it exits. Discord must have **Input Device** set to **Default** for the communications microphone choice to follow Windows. PitLaunch never requests a Discord token or account login.
+
+Discord exposes mute and deafen as toggle keybinds rather than a state-setting API. If you manually change either state during the game, the paired exit toggle will still be sent; disable that preset action when you prefer to manage the state yourself.
+
+The installed-game picker reads launcher records from Steam, Epic, Xbox, EA app, Ubisoft Connect, Battle.net, and iRacing. It does not crawl the whole disk.
+
+## Stream Deck
+
+Open **Integrations → Install plugin** in PitLaunch and approve the package in the Stream Deck app. Create and edit setups only in PitLaunch; then drag **Toggle Desk / Rig** onto a key, or use **Activate setup** and choose one of those saved PitLaunch setups. Keep PitLaunch running in the tray. The plugin connects automatically over a private local Windows pipe; it does not need an IP address, port, account, or API key. Stream Deck Mobile can use the same plugin and actions without physical hardware.
 
 If a saved monitor, audio device, application, or window is unavailable, PitLaunch skips it, reports a warning, and continues with the parts it can restore. Display plans are validated before they are saved, display changes are validated again before switching, and the previous topology is rolled back if Windows rejects an apply. If Windows rejects exact saved refresh rates, PitLaunch retries the same layout with default refresh rates instead of failing.
 
@@ -146,6 +172,8 @@ Other commands:
 PitLaunch.exe --capture "Desktop Mode"
 PitLaunch.exe --chooser
 PitLaunch.exe --background
+PitLaunch.exe --toggle
+PitLaunch.exe --undo
 PitLaunch.exe --restore-displays
 PitLaunch.exe --exit
 ```
@@ -162,7 +190,7 @@ If Windows still skips normal startup on a particular PC, use the shield-marked 
 
 PitLaunch targets 64-bit Windows 10/11 and is published as a self-contained .NET 8 executable. No separate .NET installation is required for the packaged app.
 
-## Sending a beta bug report
+## Sending a bug report
 
 Include:
 
@@ -170,5 +198,7 @@ Include:
 2. What actually happened, including any warning shown by PitLaunch.
 3. `%APPDATA%\PitLaunch\pitlaunch.log` from the affected PC.
 4. Whether any monitor, headset, microphone, or dock was disconnected at the time.
+
+The easier option is **Settings → Data and diagnostics → Export support bundle**. It creates a ZIP containing allow-listed, sanitized diagnostics. Raw profile names, executable paths and arguments, device identifiers, controller names, window titles, game process names, tokens, and email addresses are excluded.
 
 The close button sends PitLaunch to the tray. Use **Exit** from the tray menu before replacing or deleting the EXE.

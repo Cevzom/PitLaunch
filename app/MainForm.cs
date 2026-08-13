@@ -52,7 +52,12 @@ internal sealed class MainForm : Form
     public Task ActivateProfileAsync(Guid profileId, ActivationSource source) =>
         _view.ActivateProfileAsync(profileId, source);
 
+    public Task<bool> ToggleDeskRigAsync(ActivationSource source) =>
+        _view.ToggleDeskRigAsync(source);
+
     public Task<OperationReport> RestoreAllDisplaysAsync() => _view.RestoreAllDisplaysAsync();
+
+    public void ApplyStartupUpdateStatus(UpdateStatus status) => _view.ApplyStartupUpdateStatus(status);
 
     public void ShowWindow()
     {

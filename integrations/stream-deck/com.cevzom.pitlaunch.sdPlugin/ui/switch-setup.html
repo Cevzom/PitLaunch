@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<title>PitLaunch - Switch setup</title>
+	<!--
+		Deliberately dependency-free. The usual choice here is the sdpi-components library from a
+		CDN, but this plugin must work with no network at all, so the property inspector talks the
+		Stream Deck WebSocket protocol directly.
+	-->
+	<style>
+		body {
+			font-family: "Segoe UI", sans-serif;
+			font-size: 9pt;
+			background: #2d2d2d;
+			color: #d8d8d8;
+			margin: 0;
+			padding: 12px 16px;
+		}
+
+		.row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 10px;
+		}
+
+		label {
+			flex: 0 0 84px;
+			text-align: right;
+			color: #969696;
+		}
+
+		select,
+		button {
+			font-family: inherit;
+			font-size: inherit;
+			background: #3d3d3d;
+			color: #d8d8d8;
+			border: 1px solid #4a4a4a;
+			border-radius: 4px;
+			padding: 4px 6px;
+		}
+
+		select {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+
+		button {
+			cursor: pointer;
+		}
+
+		button:hover {
+			background: #4a4a4a;
+		}
+
+		.note {
+			color: #969696;
+			line-height: 1.45;
+			padding-left: 92px;
+		}
+
+		.note.error {
+			color: #e2777a;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="row">
+		<label for="profile">Setup</label>
+		<select id="profile">
+			<option value="">Loading setups...</option>
+		</select>
+	</div>
+	<div class="row">
+		<label></label>
+		<button id="refresh" type="button">Refresh list</button>
+	</div>
+	<div class="note" id="note">Setups come from PitLaunch on this PC.</div>
+
+	<script>
+		let websocket = null;
+		let pluginUUID = null;
+		let actionUUID = null;
+		let settings = {};
+
+		const profileSelect = document.getElementById("profile");
+		const note = document.getElementById("note");
+
+		function setNote(text, isError) {
+			note.textContent = text;
+			note.classList.toggle("error", Boolean(isError));
+		}
+
+		function send(payload) {
+			if (websocket && websocket.readyState === 1) websocket.send(JSON.stringify(payload));
+		}
+
+		function saveSettings() {
+			send({ event: "setSettings", context: pluginUUID, payload: settings });
+		}
+
+		function requestProfiles() {
+			setNote("Asking PitLaunch for your setups...");
+			send({ event: "sendToPlugin", action: actionUUID, context: pluginUUID, payload: { event: "getProfiles" } });
+		}
+
+		function renderProfiles(profiles) {
+			profileSelect.innerHTML = "";
+			if (!profiles.length) {
+				profileSelect.appendChild(new Option("No setups found", ""));
+				setNote("No setups yet. Create one in PitLaunch, then press Refresh list.");
+				return;
+			}
+
+			profileSelect.appendChild(new Option("Choose a setup...", ""));
+			let stillExists = false;
+			for (const profile of profiles) {
+				const label = profile.kind && profile.kind !== "Auto" ? profile.name + " (" + profile.kind + ")" : profile.name;
+				// The value is the permanent id, so renaming a setup never breaks the button.
+				const option = new Option(label, profile.id);
+				if (settings.profileId && profile.id.toLowerCase() === String(settings.profileId).toLowerCase()) {
+					option.selected = true;
+					stillExists = true;
+					// Names drift; keep the cached one current for offline labelling.
+					settings.profileName = profile.name;
+				}
+				profileSelect.appendChild(option);
+			}
+
+			if (settings.profileId && !stillExists) {
+				setNote("The setup this button used was deleted in PitLaunch. Choose another one.", true);
+				return;
+			}
+			if (stillExists) saveSettings();
+			setNote("Renaming a setup keeps this button working. Deleting it does not.");
+		}
+
+		profileSelect.addEventListener("change", () => {
+			settings.profileId = profileSelect.value || undefined;
+			const chosen = profileSelect.selectedOptions[0];
+			settings.profileName = chosen && profileSelect.value ? chosen.textContent : undefined;
+			saveSettings();
+		});
+
+		document.getElementById("refresh").addEventListener("click", requestProfiles);
+
+		// Stream Deck calls this global when the inspector loads.
+		function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, _inInfo, inActionInfo) {
+			pluginUUID = inPropertyInspectorUUID;
+			try {
+				const info = JSON.parse(inActionInfo);
+				actionUUID = info.action;
+				settings = (info.payload && info.payload.settings) || {};
+			} catch (error) {
+				settings = {};
+			}
+
+			websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+			websocket.onopen = () => {
+				send({ event: inRegisterEvent, uuid: inPropertyInspectorUUID });
+				requestProfiles();
+			};
+			websocket.onmessage = (event) => {
+				let message;
+				try {
+					message = JSON.parse(event.data);
+				} catch (error) {
+					return;
+				}
+				if (message.event === "didReceiveSettings") {
+					settings = (message.payload && message.payload.settings) || {};
+					return;
+				}
+				if (message.event !== "sendToPropertyInspector") return;
+
+				const payload = message.payload || {};
+				if (payload.event === "profiles") renderProfiles(Array.isArray(payload.profiles) ? payload.profiles : []);
+				else if (payload.event === "profilesError") {
+					setNote("Could not reach PitLaunch: " + payload.message + ". Open PitLaunch, then press Refresh list.", true);
+				}
+			};
+			websocket.onerror = () => setNote("Lost the connection to Stream Deck.", true);
+		}
+	</script>
+</body>
+
+</html>

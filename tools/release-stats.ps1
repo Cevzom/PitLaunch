@@ -43,27 +43,30 @@ function Kind([string]$name) {
 }
 
 $rows = foreach ($r in $releases) {
+    $releaseVersion = [string]$r.tag_name -replace '^v', ''
     foreach ($a in $r.assets) {
         [pscustomobject]@{
             Release   = $r.tag_name
             Published = if ($r.published_at) { [datetime]$r.published_at } else { $null }
             Asset     = $a.name
             Kind      = Kind $a.name
+            IsReleaseDelta = $a.name -ieq "PitLaunch-$releaseVersion-delta.nupkg"
+            IsReleaseFull  = $a.name -ieq "PitLaunch-$releaseVersion-full.nupkg"
             Downloads = [int]$a.download_count
         }
     }
 }
 
 $installs  = ($rows | Where-Object Kind -eq "install"  | Measure-Object Downloads -Sum).Sum
-$updates   = ($rows | Where-Object Kind -eq "update"   | Measure-Object Downloads -Sum).Sum
-$repairs   = ($rows | Where-Object Kind -eq "repair"   | Measure-Object Downloads -Sum).Sum
+$updates   = ($rows | Where-Object IsReleaseDelta      | Measure-Object Downloads -Sum).Sum
+$repairs   = ($rows | Where-Object IsReleaseFull       | Measure-Object Downloads -Sum).Sum
 $portable  = ($rows | Where-Object Kind -eq "portable" | Measure-Object Downloads -Sum).Sum
 foreach ($v in 'installs','updates','repairs','portable') {
     if ($null -eq (Get-Variable $v -ValueOnly)) { Set-Variable $v 0 }
 }
 
 # The newest release that actually carries a delta is the freshest read on live installs.
-$latestDelta = $rows | Where-Object { $_.Kind -eq "update" } |
+$latestDelta = $rows | Where-Object IsReleaseDelta |
     Sort-Object Published -Descending | Select-Object -First 1
 
 Write-Host ""
@@ -90,10 +93,10 @@ $releases | ForEach-Object {
     $tot = ($mine | Measure-Object Downloads -Sum).Sum
     if ($null -eq $tot) { $tot = 0 }
     $when = if ($_.published_at) { ([datetime]$_.published_at).ToString("yyyy-MM-dd") } else { "draft" }
-    $d = ($mine | Where-Object Kind -eq "update" | Measure-Object Downloads -Sum).Sum
+    $d = ($mine | Where-Object IsReleaseDelta | Measure-Object Downloads -Sum).Sum
     $i = ($mine | Where-Object Kind -eq "install" | Measure-Object Downloads -Sum).Sum
     if ($null -eq $d) { $d = 0 }; if ($null -eq $i) { $i = 0 }
-    Write-Host ("   {0,-22} {1}   total {2,5}   new {3,4}   updated {4,4}" -f $tag, $when, $tot, $i, $d)
+    Write-Host ("   {0,-22} {1}   installer {2,4}   live estimate {3,4}   all assets {4,5}" -f $tag, $when, $i, $d, $tot)
 }
 Write-Host ""
 
@@ -103,6 +106,7 @@ if ($Detailed) {
         Format-Table @{n='Release';e={$_.Release}}, @{n='Asset';e={$_.Asset}}, @{n='Kind';e={$_.Kind}}, @{n='Downloads';e={$_.Downloads}} -AutoSize
 }
 
-Write-Host "  Note: counts include anyone who grabbed a file - mirrors, bots, you." -ForegroundColor DarkGray
-Write-Host "  It reads how many copies are out there, not how often they get used." -ForegroundColor DarkGray
+Write-Host "  Installer is the GitHub API download total for Setup.exe assets in that release." -ForegroundColor DarkGray
+Write-Host "  Live estimate is that release's delta downloads; it becomes meaningful after an update ships." -ForegroundColor DarkGray
+Write-Host "  Counts include anyone who grabbed a file - mirrors, bots, you." -ForegroundColor DarkGray
 Write-Host ""

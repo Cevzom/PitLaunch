@@ -1,0 +1,82 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "PitLaunch",
+	"Version": "1.0.0.0",
+	"Author": "Cevzom",
+	"Actions": [
+		{
+			"Name": "Switch setup",
+			"UUID": "com.cevzom.pitlaunch.switch-setup",
+			"Icon": "imgs/actions/switch-setup/icon",
+			"Tooltip": "Switch PitLaunch to a saved setup.",
+			"PropertyInspectorPath": "ui/switch-setup.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/switch-setup/key",
+					"TitleAlignment": "bottom",
+					"FontSize": 12
+				},
+				{
+					"Image": "imgs/actions/switch-setup/key-active",
+					"TitleAlignment": "bottom",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Toggle Desk / Rig",
+			"UUID": "com.cevzom.pitlaunch.toggle-setup",
+			"Icon": "imgs/actions/switch-setup/icon",
+			"Tooltip": "Switch to the opposite Desk or Sim Racing setup. No setup selection needed.",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/switch-setup/key",
+					"TitleAlignment": "bottom",
+					"FontSize": 12
+				}
+			]
+		},
+		{
+			"Name": "Restore displays",
+			"UUID": "com.cevzom.pitlaunch.restore-displays",
+			"Icon": "imgs/actions/restore-displays/icon",
+			"Tooltip": "Turn every connected monitor back on. Use when a switch leaves a screen dark.",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/restore-displays/key",
+					"TitleAlignment": "bottom",
+					"FontSize": 12
+				}
+			]
+		}
+	],
+	"Category": "PitLaunch",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"CodePath": "bin/plugin.js",
+	"Description": "Switch your PC between desk and sim-racing setups from a Stream Deck button. Talks to PitLaunch on this machine only.",
+	"Icon": "imgs/plugin/marketplace",
+	"SDKVersion": 2,
+	"Software": {
+		"MinimumVersion": "6.5"
+	},
+	"OS": [
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20",
+		"Debug": "enabled"
+	},
+	"UUID": "com.cevzom.pitlaunch"
+}

@@ -1,0 +1,25 @@
+{
+  "columns": ["PitLaunch", "DisplayMagician", "SimLauncher"],
+  "rows": [
+    {
+      "need": "Whole-PC Desk ↔ Rig switching: displays, audio, window positions, apps, hardware readiness, game detection, Discord, Stream Deck, safety and recovery",
+      "pitlaunch": "Strongest fit",
+      "displayMagician": "Display-first workflow",
+      "simLauncher": "Launcher-first workflow"
+    },
+    {
+      "need": "NVIDIA Surround / AMD Eyefinity / cloned displays and unusual display hardware",
+      "pitlaunch": "Windows-visible layouts only",
+      "displayMagician": "Strongest fit",
+      "simLauncher": "Different focus"
+    },
+    {
+      "need": "A large game/companion launcher: 27 sims, drag-to-reorder and launch delays",
+      "pitlaunch": "Game presets, not a 27-sim catalog",
+      "displayMagician": "Different focus",
+      "simLauncher": "Strongest fit"
+    }
+  ],
+  "summary": "DisplayMagician is stronger for NVIDIA Surround, AMD Eyefinity, cloned displays, and unusual display hardware. SimLauncher is stronger as a large game and companion-app launcher, with 27 sims, drag-to-reorder, and launch delays. PitLaunch is the whole-PC Desk ↔ Rig switcher: displays, audio, window positions, apps, hardware readiness, game detection, Discord, Stream Deck, safety, and recovery move as one setup.",
+  "verification": "PitLaunch 1.0 behavior in this comparison was verified locally on the launch machine. Competitor strengths are fair summaries of their official documentation and were not hardware-tested here."
+}

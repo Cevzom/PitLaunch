@@ -20,6 +20,14 @@ internal sealed record GameEntry(string Name, string ExecutablePath, string Sour
 /// </summary>
 internal sealed class GameLibraryService
 {
+    // Installer metadata is not trusted enough to justify an unbounded recursive disk walk.
+    // Search only inside a validated game folder, never cross reparse points, and stop after a
+    // generous number of candidates. A normal game has tens of executables, not thousands.
+    private const int MaxExecutableSearchDepth = 3;
+    private const int MaxExecutableCandidates = 2000;
+    private const int MaxExecutableDirectories = 512;
+    private const int MaxXboxGameFolders = 1000;
+
     private static readonly string[] SimRacingTerms =
     [
         "assetto", "iracing", "rfactor", "automobilista", "raceroom", "beamng", "dirt", "wrc",
@@ -57,7 +65,9 @@ internal sealed class GameLibraryService
         Dictionary<string, GameEntry> games = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (GameEntry entry in ScanSafely(ScanSteam, "Steam")
-                     .Concat(ScanSafely(ScanEpic, "Epic")))
+                     .Concat(ScanSafely(ScanEpic, "Epic"))
+                     .Concat(ScanSafely(ScanLauncherRegistrations, "EA / Ubisoft / Battle.net / iRacing"))
+                     .Concat(ScanSafely(ScanXboxLibraries, "Xbox")))
         {
             // Key on the executable so the same game found twice does not appear twice.
             games[entry.ExecutablePath] = entry;
@@ -164,6 +174,204 @@ internal sealed class GameLibraryService
         }
     }
 
+    /// <summary>
+    /// EA app, Ubisoft Connect, Battle.net and iRacing all register their installed titles with
+    /// Windows even though their private launcher databases use different formats. Reading the
+    /// normal uninstall records keeps this scanner read-only and resilient across launcher updates.
+    /// </summary>
+    private static IEnumerable<GameEntry> ScanLauncherRegistrations()
+    {
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        foreach (RegistryHive hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+        {
+            foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+            {
+                using RegistryKey? root = OpenRegistry(hive, view,
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
+                if (root is null) continue;
+                foreach (string keyName in SafeSubKeyNames(root))
+                {
+                    using RegistryKey? item = OpenSubKey(root, keyName);
+                    if (item is null) continue;
+                    string name = RegistryText(item, "DisplayName");
+                    string publisher = RegistryText(item, "Publisher");
+                    string location = NormalizeInstallLocation(RegistryText(item, "InstallLocation"));
+                    string icon = RegistryText(item, "DisplayIcon");
+                    string source = LauncherSource(name, publisher, location);
+                    if (source.Length == 0 || name.Length == 0 || IsNotAGame(name)) continue;
+
+                    bool safeLocation = IsSafeExecutableSearchRoot(location);
+                    string? guessed = safeLocation
+                        ? PickExecutable(location, name, Path.GetFileName(location))
+                        : null;
+                    // Known titles (notably iRacing) often register a launcher icon even though the
+                    // long-running simulation executable is present below InstallLocation.
+                    string? executable = IsKnownTitle(name) ? guessed : ExistingExecutable(icon) ?? guessed;
+                    if (executable is null || !seen.Add(executable)) continue;
+                    yield return new GameEntry(name, executable, source);
+                }
+            }
+        }
+    }
+
+    /// <summary>Xbox PC games are installed below the user-selected XboxGames folder on each drive.</summary>
+    private static IEnumerable<GameEntry> ScanXboxLibraries()
+    {
+        foreach (DriveInfo drive in DriveInfo.GetDrives())
+        {
+            string library;
+            try
+            {
+                if (drive.DriveType is not DriveType.Fixed and not DriveType.Removable) continue;
+                if (!drive.IsReady) continue;
+                library = Path.Combine(drive.RootDirectory.FullName, "XboxGames");
+            }
+            catch { continue; }
+            foreach (GameEntry game in ScanXboxLibraryRoot(library)) yield return game;
+        }
+    }
+
+    internal static IEnumerable<GameEntry> ScanXboxLibraryRoot(string library)
+    {
+        if (!Directory.Exists(library) || !IsSafeExecutableSearchRoot(library)) yield break;
+        foreach (string gameFolder in SafeDirectories(library))
+        {
+            string content = Path.Combine(gameFolder, "Content");
+            if (!Directory.Exists(content)) content = gameFolder;
+            string name = Path.GetFileName(gameFolder);
+            if (string.IsNullOrWhiteSpace(name) || IsNotAGame(name)) continue;
+            string? executable = PickExecutable(content, name, name);
+            if (executable is not null) yield return new GameEntry(name, executable, "Xbox");
+        }
+    }
+
+    internal static string LauncherSource(string name, string publisher, string location)
+    {
+        string haystack = name + " " + publisher + " " + location;
+        if (haystack.Contains("iRacing", StringComparison.OrdinalIgnoreCase)) return "iRacing";
+        if (haystack.Contains("Ubisoft", StringComparison.OrdinalIgnoreCase)) return "Ubisoft Connect";
+        if (haystack.Contains("Blizzard", StringComparison.OrdinalIgnoreCase) ||
+            haystack.Contains("Battle.net", StringComparison.OrdinalIgnoreCase)) return "Battle.net";
+        if (haystack.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) ||
+            publisher.Equals("EA", StringComparison.OrdinalIgnoreCase) ||
+            location.Contains("EA Games", StringComparison.OrdinalIgnoreCase)) return "EA app";
+        return string.Empty;
+    }
+
+    private static RegistryKey? OpenRegistry(RegistryHive hive, RegistryView view, string path)
+    {
+        try
+        {
+            using RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view);
+            return baseKey.OpenSubKey(path);
+        }
+        catch { return null; }
+    }
+
+    private static RegistryKey? OpenSubKey(RegistryKey root, string name)
+    {
+        try { return root.OpenSubKey(name); }
+        catch { return null; }
+    }
+
+    private static string[] SafeSubKeyNames(RegistryKey root)
+    {
+        try { return root.GetSubKeyNames(); }
+        catch { return []; }
+    }
+
+    private static string RegistryText(RegistryKey key, string name)
+    {
+        try { return key.GetValue(name)?.ToString()?.Trim() ?? string.Empty; }
+        catch { return string.Empty; }
+    }
+
+    internal static string? ExistingExecutable(string displayIcon)
+    {
+        string? value = DisplayIconPath(displayIcon);
+        if (value is null) return null;
+        try
+        {
+            string fileName = Path.GetFileNameWithoutExtension(value);
+            return File.Exists(value) &&
+                   Path.GetExtension(value).Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+                   !IsExecutableNoise(fileName)
+                ? value
+                : null;
+        }
+        catch { return null; }
+    }
+
+    internal static string? DisplayIconPath(string displayIcon)
+    {
+        if (string.IsNullOrWhiteSpace(displayIcon)) return null;
+        string value = displayIcon.Trim();
+        if (value.StartsWith('"'))
+        {
+            int closingQuote = value.IndexOf('"', 1);
+            if (closingQuote < 2) return null;
+            value = value[1..closingQuote];
+        }
+        else
+        {
+            int comma = value.LastIndexOf(',');
+            if (comma > 2 && int.TryParse(value[(comma + 1)..].Trim(), out _)) value = value[..comma];
+            value = value.Trim().Trim('"');
+        }
+
+        try
+        {
+            value = Environment.ExpandEnvironmentVariables(value);
+            return Path.GetFullPath(value);
+        }
+        catch { return null; }
+    }
+
+    internal static string NormalizeInstallLocation(string location)
+    {
+        if (string.IsNullOrWhiteSpace(location)) return string.Empty;
+        try
+        {
+            string value = Environment.ExpandEnvironmentVariables(location.Trim().Trim('"'));
+            return Path.GetFullPath(value);
+        }
+        catch { return string.Empty; }
+    }
+
+    internal static bool IsSafeExecutableSearchRoot(string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) return false;
+        try
+        {
+            string fullPath = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string root = (Path.GetPathRoot(fullPath) ?? string.Empty)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (fullPath.Length == 0 || fullPath.Equals(root, StringComparison.OrdinalIgnoreCase)) return false;
+            if (Directory.Exists(fullPath) &&
+                (new DirectoryInfo(fullPath).Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return false;
+            }
+
+            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (IsSameOrDescendant(fullPath, windows)) return false;
+
+            string[] exactBroadRoots =
+            [
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+            ];
+            return !exactBroadRoots.Where(path => !string.IsNullOrWhiteSpace(path)).Any(path =>
+                fullPath.Equals(Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar),
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        catch { return false; }
+    }
+
     private static string? Text(JsonElement root, string property) =>
         root.TryGetProperty(property, out JsonElement value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -175,7 +383,7 @@ internal sealed class GameLibraryService
     /// </summary>
     private static string? PickExecutable(string folder, string gameName, string installDir)
     {
-        if (!Directory.Exists(folder)) return null;
+        if (!Directory.Exists(folder) || !IsSafeExecutableSearchRoot(folder)) return null;
 
         // A pinned executable for a known title always wins over the guesswork below.
         foreach ((string title, string executable) in KnownExecutables)
@@ -189,11 +397,10 @@ internal sealed class GameLibraryService
         List<FileInfo> candidates = [];
         try
         {
-            EnumerationOptions options = new() { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true };
-            foreach (string path in Directory.EnumerateFiles(folder, "*.exe", options))
+            foreach (string path in EnumerateExecutablesBounded(folder, "*.exe"))
             {
                 string file = Path.GetFileNameWithoutExtension(path);
-                if (ExecutableNoise.Any(noise => file.Contains(noise, StringComparison.OrdinalIgnoreCase))) continue;
+                if (IsExecutableNoise(file)) continue;
                 try { candidates.Add(new FileInfo(path)); } catch { }
             }
         }
@@ -224,26 +431,38 @@ internal sealed class GameLibraryService
 
     private static string? FindFile(string folder, string fileName)
     {
-        try
-        {
-            EnumerationOptions options = new() { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true };
-            return Directory.EnumerateFiles(folder, fileName, options).FirstOrDefault();
-        }
-        catch
-        {
-            return null;
-        }
+        if (!IsSafeExecutableSearchRoot(folder)) return null;
+        return EnumerateExecutablesBounded(folder, fileName).FirstOrDefault();
     }
 
     private static string Simplify(string value) =>
         new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
-    private static bool IsNotAGame(string name) =>
+    private static bool IsKnownTitle(string name) =>
+        KnownExecutables.Any(item => name.Contains(item.Title, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsExecutableNoise(string fileName) =>
+        ExecutableNoise.Any(noise => fileName.Contains(noise, StringComparison.OrdinalIgnoreCase)) ||
+        fileName.Equals("msiexec", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsNotAGame(string name) =>
         name.Contains("redistributable", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("Steamworks", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("Proton", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("Steam Linux Runtime", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("DirectX", StringComparison.OrdinalIgnoreCase);
+        name.Contains("DirectX", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("anti-cheat", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("anticheat", StringComparison.OrdinalIgnoreCase) ||
+        Simplify(name) is "eaapp" or "eadesktop" or "ubisoftconnect" or "ubisoftgamelauncher" or
+            "battlenet" or "blizzardbattlenet" or "iracingservice";
+
+    private static bool IsSameOrDescendant(string path, string parent)
+    {
+        if (string.IsNullOrWhiteSpace(parent)) return false;
+        string fullParent = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return path.Equals(fullParent, StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWith(fullParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
 
     internal static bool LooksLikeSimRacing(string name) =>
         SimRacingTerms.Any(term => name.Contains(term, StringComparison.OrdinalIgnoreCase));
@@ -252,6 +471,62 @@ internal sealed class GameLibraryService
     {
         try { return Directory.EnumerateFiles(folder, pattern); }
         catch { return []; }
+    }
+
+    private static IEnumerable<string> SafeDirectories(string folder)
+    {
+        try
+        {
+            EnumerationOptions options = new()
+            {
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = false,
+                AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System
+            };
+            return Directory.EnumerateDirectories(folder, "*", options).Take(MaxXboxGameFolders).ToList();
+        }
+        catch { return []; }
+    }
+
+    private static IReadOnlyList<string> EnumerateExecutablesBounded(string root, string pattern)
+    {
+        List<string> files = [];
+        Queue<(string Directory, int Depth)> pending = [];
+        pending.Enqueue((root, 0));
+        int visitedDirectories = 0;
+        EnumerationOptions direct = new()
+        {
+            RecurseSubdirectories = false,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System
+        };
+
+        while (pending.Count > 0 && visitedDirectories < MaxExecutableDirectories &&
+               files.Count < MaxExecutableCandidates)
+        {
+            (string directory, int depth) = pending.Dequeue();
+            visitedDirectories++;
+            try
+            {
+                foreach (string file in Directory.EnumerateFiles(directory, pattern, direct))
+                {
+                    files.Add(file);
+                    if (files.Count >= MaxExecutableCandidates) break;
+                }
+                if (depth >= MaxExecutableSearchDepth) continue;
+                foreach (string child in Directory.EnumerateDirectories(directory, "*", direct))
+                {
+                    if (pending.Count + visitedDirectories >= MaxExecutableDirectories) break;
+                    pending.Enqueue((child, depth + 1));
+                }
+            }
+            catch
+            {
+                // A protected launcher subfolder should not hide the rest of the library.
+            }
+        }
+
+        return files;
     }
 
     private static string? MatchValue(string text, string key)

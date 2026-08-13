@@ -68,6 +68,20 @@ internal sealed class AudioService
         SetEndpoint(snapshot.Microphone, "microphone", [Role.Console, Role.Multimedia, Role.Communications], report);
     }
 
+    public void SetCommunicationsMicrophone(string deviceId, OperationReport report)
+    {
+        string clean = (deviceId ?? string.Empty).Trim();
+        if (clean.Length == 0) return;
+        AudioDeviceOption? device = ListActiveEndpoints(true)
+            .FirstOrDefault(option => string.Equals(option.Id, clean, StringComparison.OrdinalIgnoreCase));
+        AudioEndpointSnapshot endpoint = new()
+        {
+            DeviceId = clean,
+            FriendlyName = device?.Name ?? "Saved Discord microphone"
+        };
+        SetEndpoint(endpoint, "Discord communications microphone", [Role.Communications], report);
+    }
+
     private static void SetEndpoint(
         AudioEndpointSnapshot? endpoint,
         string label,

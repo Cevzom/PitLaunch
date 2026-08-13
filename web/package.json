@@ -1,0 +1,11 @@
+{
+  "name": "pitlaunch-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The PitLaunch product site. Static, no build step.",
+  "scripts": {
+    "dev": "npx --yes serve public --listen 4321",
+    "docker:build": "docker build -t pitlaunch-web .",
+    "docker:run": "docker run --rm -e PORT=8080 -p 8080:8080 pitlaunch-web"
+  }
+}

@@ -13,15 +13,20 @@ using Fluent = global::Wpf.Ui.Controls;
 
 public partial class PitLaunchView : Controls.UserControl
 {
-    private enum AppPage { Home, Profile, Settings }
+    private enum AppPage { Home, Profile, Games, Integrations, Settings }
     private enum DialogMode { None, Text, Confirm, SetupGuide, GamePicker }
 
     private readonly ProfileCoordinator _coordinator;
     private readonly MainForm _owner;
     private AppPage _page = AppPage.Home;
     private Guid? _selectedProfileId;
+    private Guid? _gamesProfileId;
+    private Guid? _integrationsProfileId;
+    private bool _refreshingFeaturePicker;
     private int _pollSeconds = 2;
+    private int _gameExitGraceSeconds = 10;
     private string _hotkeyCommitted = string.Empty;
+    private string _toggleHotkeyCommitted = string.Empty;
     private int _toastVersion;
     private int _busyVersion;
     private int _homeRefreshVersion;
@@ -57,6 +62,8 @@ public partial class PitLaunchView : Controls.UserControl
     private double _dragOriginTop;
     private readonly UpdateService _updates = new();
     private Velopack.UpdateInfo? _pendingUpdate;
+    private UpdateStatus? _requiredUpdate;
+    private int _setupGuideStep;
 
     internal PitLaunchView(ProfileCoordinator coordinator, MainForm owner)
     {
@@ -71,7 +78,7 @@ public partial class PitLaunchView : Controls.UserControl
             PlayWindowReveal();
             Focus();
             Input.Keyboard.Focus(this);
-            _ = CheckForUpdatesInBackgroundAsync();
+            Dispatcher.BeginInvoke(ShowOnboardingIfNeeded);
         };
 
         _coordinator.ProfilesChanged += () => RunOnUi(RefreshAll);
@@ -79,14 +86,74 @@ public partial class PitLaunchView : Controls.UserControl
         _coordinator.SwitchCompleted += completed => RunOnUi(() => ShowReport(completed.Report));
     }
 
-    internal async Task PromptCaptureAsync()
+    private void ShowOnboardingIfNeeded()
+    {
+        if (_coordinator.Document.Settings.OnboardingCompleted ||
+            _coordinator.Document.Profiles.Count > 0)
+        {
+            return;
+        }
+
+        OnboardingLayer.Visibility = Wpf.Visibility.Visible;
+        OnboardingLayer.Opacity = 0;
+        OnboardingLayer.BeginAnimation(OpacityProperty, StrongDoubleAnimationTo(1, 240));
+        Dispatcher.BeginInvoke(() => OnboardingStartButton.Focus());
+        AppLog.Info("Onboarding: First-run guide opened.");
+    }
+
+    private async void OnboardingStart_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        HideOnboarding();
+        await Task.Delay(170);
+        bool created = await PromptCaptureAsync();
+        if (created)
+        {
+            CompleteOnboarding("Guided setup completed", hide: false);
+        }
+        else if (!_coordinator.Document.Settings.OnboardingCompleted &&
+                 _coordinator.Document.Profiles.Count == 0)
+        {
+            ShowOnboardingIfNeeded();
+        }
+    }
+
+    private void OnboardingSkip_Click(object sender, Wpf.RoutedEventArgs e) =>
+        CompleteOnboarding("Guide skipped");
+
+    private bool CompleteOnboarding(string reason, bool hide = true)
+    {
+        try
+        {
+            _coordinator.Document.Settings.OnboardingCompleted = true;
+            _coordinator.SaveSettings();
+        }
+        catch (Exception ex)
+        {
+            _coordinator.Document.Settings.OnboardingCompleted = false;
+            ShowError("PitLaunch could not save the quick-start choice: " + ex.Message);
+            return false;
+        }
+
+        AppLog.Info("Onboarding: " + reason + ".");
+        if (hide) HideOnboarding();
+        return true;
+    }
+
+    private void HideOnboarding()
+    {
+        Animation.DoubleAnimation fade = DoubleAnimationTo(0, 150);
+        fade.Completed += (_, _) => OnboardingLayer.Visibility = Wpf.Visibility.Collapsed;
+        OnboardingLayer.BeginAnimation(OpacityProperty, fade);
+    }
+
+    internal async Task<bool> PromptCaptureAsync()
     {
         AppLog.Info("Capture: Setup guide opened.");
         SetupGuideResult? setup = await ShowSetupGuideAsync();
         if (setup is null)
         {
             AppLog.Info("Capture: Setup guide canceled.");
-            return;
+            return false;
         }
         AppLog.Info("Capture: Setup guide confirmed. Creating validated device plan.");
         try
@@ -100,18 +167,20 @@ public partial class PitLaunchView : Controls.UserControl
             if (profile is null)
             {
                 RunOnUi(() => ShowReport(report));
-                return;
+                return false;
             }
 
             _selectedProfileId = profile.Id;
             RunOnUi(RefreshAll);
             // The guide's button is "Create and switch" â€” the user already committed, so skip the extra dialog.
             await ActivateProfileAsync(profile.Id, ActivationSource.User, bypassConfirm: true);
+            return true;
         }
         catch (Exception ex)
         {
             AppLog.Error("Configured setup request failed: " + ex);
             RunOnUi(() => ShowError(ex.Message));
+            return false;
         }
     }
 
@@ -177,10 +246,12 @@ public partial class PitLaunchView : Controls.UserControl
         SetupGuideVariantHost.Visibility = suggestedKind == SetupKind.SimRacing
             ? Wpf.Visibility.Visible
             : Wpf.Visibility.Collapsed;
+        Controls.Grid.SetColumnSpan(SetupGuideNameHost, suggestedKind == SetupKind.SimRacing ? 1 : 3);
         SetupGuideError.Visibility = Wpf.Visibility.Collapsed;
         SetupGuideHardwareError.Visibility = Wpf.Visibility.Collapsed;
         SetupGuideCaptureButton.IsEnabled = true;
-        ShowSetupGuideStep(prepare: false, animate: false);
+        _setupGuideStep = 0;
+        ShowSetupGuideStep(0, animate: false);
 
         SetupGuideLayer.Visibility = Wpf.Visibility.Visible;
         SetupGuideLayer.Opacity = 0;
@@ -198,6 +269,7 @@ public partial class PitLaunchView : Controls.UserControl
         if (SetupGuideVariantHost is null || SetupGuideName is null) return;
         bool sim = SetupSimChoice.IsChecked == true;
         SetupGuideVariantHost.Visibility = sim ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
+        Controls.Grid.SetColumnSpan(SetupGuideNameHost, sim ? 1 : 3);
         string current = SetupGuideName.Text.Trim();
         if (current.Length == 0 || current is "Desk" or "Sim Racing" || current.StartsWith("Setup ", StringComparison.Ordinal))
         {
@@ -239,18 +311,49 @@ public partial class PitLaunchView : Controls.UserControl
 
     private void SetupGuideNext_Click(object sender, Wpf.RoutedEventArgs e)
     {
-        if (!TryReadSetupIdentity(out SetupGuideIdentity setup)) return;
-        _setupGuideIdentity = setup;
-        SetupGuidePrepareTitle.Text = setup.Kind == SetupKind.SimRacing
-            ? "Choose the sim rig hardware"
-            : "Choose the desk hardware";
-        PrepareSetupHardware(setup);
-        ShowSetupGuideStep(prepare: true, animate: true);
+        if (_setupGuideStep == 0)
+        {
+            if (!TryReadSetupIdentity(out SetupGuideIdentity setup)) return;
+            _setupGuideIdentity = setup;
+            PrepareSetupHardware(setup);
+            ShowSetupGuideStep(1, animate: true);
+            return;
+        }
+
+        if (_setupGuideStep == 1)
+        {
+            try
+            {
+                _ = _coordinator.BuildDisplaySnapshot(CurrentSetupDisplayRequest());
+                SetupGuideHardwareError.Visibility = Wpf.Visibility.Collapsed;
+                ShowSetupGuideStep(2, animate: true);
+            }
+            catch (Exception ex)
+            {
+                ShowSetupHardwareError(ex.Message);
+            }
+            return;
+        }
+
+        if (_setupGuideStep == 2)
+        {
+            try
+            {
+                UpdateSetupReview();
+                ShowSetupGuideStep(3, animate: true);
+            }
+            catch (Exception ex)
+            {
+                ShowSetupGuideStep(1, animate: true);
+                ShowSetupHardwareError(ex.Message);
+            }
+        }
     }
 
     private void PrepareSetupHardware(SetupGuideIdentity setup)
     {
         SetupGuideHardwareError.Visibility = Wpf.Visibility.Collapsed;
+        SetupGuideNextButton.IsEnabled = true;
         SetupGuideCaptureButton.IsEnabled = true;
         try
         {
@@ -278,6 +381,7 @@ public partial class PitLaunchView : Controls.UserControl
         }
         catch (Exception ex)
         {
+            SetupGuideNextButton.IsEnabled = false;
             SetupGuideCaptureButton.IsEnabled = false;
             SetupGuideHardwareError.Text = ex.Message;
             SetupGuideHardwareError.Visibility = Wpf.Visibility.Visible;
@@ -573,10 +677,12 @@ public partial class PitLaunchView : Controls.UserControl
             SetupGuideValidationStrip.Background = Brush("InfoSoftBrush");
             SetupGuideValidationStrip.BorderBrush = NewBrush("#453A78");
             SetupGuideValidationText.Text = "Ready. PitLaunch will ask Windows to validate this exact plan before it saves or switches.";
+            SetupGuideNextButton.IsEnabled = true;
             SetupGuideCaptureButton.IsEnabled = true;
         }
         catch (Exception ex)
         {
+            SetupGuideNextButton.IsEnabled = false;
             SetupGuideCaptureButton.IsEnabled = false;
             ShowSetupHardwareError(ex.Message);
         }
@@ -589,28 +695,74 @@ public partial class PitLaunchView : Controls.UserControl
         SetupGuideValidationStrip.Background = Brush("ErrorSoftBrush");
         SetupGuideValidationStrip.BorderBrush = Brush("ErrorBrush");
         SetupGuideValidationText.Text = "This plan is not ready yet.";
+        SetupGuideNextButton.IsEnabled = false;
+        SetupGuideCaptureButton.IsEnabled = false;
+    }
+
+    private void UpdateSetupReview()
+    {
+        SetupGuideIdentity identity = _setupGuideIdentity
+            ?? throw new InvalidOperationException("Choose a setup name and type first.");
+        DisplaySnapshot display = _coordinator.BuildDisplaySnapshot(CurrentSetupDisplayRequest());
+        List<MonitorSnapshot> enabled = display.Monitors.Where(monitor => monitor.Enabled).ToList();
+        MonitorSnapshot main = enabled.First(monitor => monitor.Primary);
+        DisplayLayoutOption? layout = SetupGuideLayoutPicker.SelectedItem as DisplayLayoutOption;
+        AudioEndpointSnapshot? playback = SelectedEndpoint(SetupGuidePlaybackPicker);
+        AudioEndpointSnapshot? microphone = SelectedEndpoint(SetupGuideMicrophonePicker);
+
+        SetupGuideReviewName.Text = identity.Name;
+        SetupGuideReviewType.Text = identity.Kind == SetupKind.SimRacing ? "Sim racing" : "Desk";
+        SetupGuideReviewDisplays.Text = $"{enabled.Count} screen{(enabled.Count == 1 ? string.Empty : "s")} · {main.FriendlyName} is main";
+        SetupGuideReviewLayout.Text = layout?.Label ?? "Recommended";
+        SetupGuideReviewOutput.Text = playback?.FriendlyName ?? "Leave Windows output unchanged";
+        SetupGuideReviewMicrophone.Text = microphone?.FriendlyName ?? "Leave Windows microphone unchanged";
+        SetupGuideValidationStrip.Background = Brush("InfoSoftBrush");
+        SetupGuideValidationStrip.BorderBrush = NewBrush("#453A78");
+        SetupGuideValidationText.Text = "Ready. Create it when this matches the place in front of you.";
+        SetupGuideCaptureButton.IsEnabled = true;
     }
 
     private void SetupGuideBack_Click(object sender, Wpf.RoutedEventArgs e) =>
-        ShowSetupGuideStep(prepare: false, animate: true);
+        ShowSetupGuideStep(_setupGuideStep - 1, animate: true);
 
-    private void ShowSetupGuideStep(bool prepare, bool animate)
+    private Wpf.FrameworkElement[] SetupGuideSteps() =>
+    [
+        SetupGuideIdentityStep,
+        SetupGuideDisplayStep,
+        SetupGuideAudioStep,
+        SetupGuideReviewStep
+    ];
+
+    private void ShowSetupGuideStep(int step, bool animate)
     {
-        Wpf.FrameworkElement outgoing = prepare ? SetupGuideIdentityStep : SetupGuidePrepareStep;
-        Wpf.FrameworkElement incoming = prepare ? SetupGuidePrepareStep : SetupGuideIdentityStep;
-        SetupGuideStepLabel.Text = prepare ? "STEP 2 OF 2" : "STEP 1 OF 2";
-        SetupGuideBackButton.Visibility = prepare ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
-        SetupGuideNextButton.Visibility = prepare ? Wpf.Visibility.Collapsed : Wpf.Visibility.Visible;
-        SetupGuideCaptureButton.Visibility = prepare ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
-
-        if (!animate)
+        Wpf.FrameworkElement[] steps = SetupGuideSteps();
+        int next = Math.Clamp(step, 0, steps.Length - 1);
+        Wpf.FrameworkElement? outgoing = steps.FirstOrDefault(item => item.Visibility == Wpf.Visibility.Visible);
+        Wpf.FrameworkElement incoming = steps[next];
+        _setupGuideStep = next;
+        SetupGuideStepLabel.Text = $"STEP {next + 1} OF {steps.Length}";
+        SetupGuideBackButton.Visibility = next > 0 ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
+        SetupGuideNextButton.Visibility = next < steps.Length - 1 ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
+        SetupGuideCaptureButton.Visibility = next == steps.Length - 1 ? Wpf.Visibility.Visible : Wpf.Visibility.Collapsed;
+        if (next != 1) SetupGuideNextButton.IsEnabled = true;
+        SetupGuideNextButton.Content = next switch
         {
-            outgoing.BeginAnimation(OpacityProperty, null);
+            0 => "Choose displays",
+            1 => "Choose sound",
+            _ => "Review setup"
+        };
+        Wpf.Automation.AutomationProperties.SetName(SetupGuideNextButton, SetupGuideNextButton.Content.ToString() ?? "Continue setup");
+
+        foreach (Wpf.FrameworkElement panel in steps)
+        {
+            if (ReferenceEquals(panel, incoming)) continue;
+            if (!ReferenceEquals(panel, outgoing)) panel.Visibility = Wpf.Visibility.Collapsed;
+        }
+
+        if (!animate || outgoing is null || ReferenceEquals(outgoing, incoming))
+        {
             incoming.BeginAnimation(OpacityProperty, null);
-            EnsureTranslate(outgoing).BeginAnimation(Media.TranslateTransform.YProperty, null);
             EnsureTranslate(incoming).BeginAnimation(Media.TranslateTransform.YProperty, null);
-            outgoing.Visibility = Wpf.Visibility.Collapsed;
-            outgoing.Opacity = 0;
             incoming.Visibility = Wpf.Visibility.Visible;
             incoming.Opacity = 1;
             EnsureTranslate(incoming).Y = 0;
@@ -633,7 +785,7 @@ public partial class PitLaunchView : Controls.UserControl
     {
         if (!TryReadSetupIdentity(out SetupGuideIdentity identity))
         {
-            ShowSetupGuideStep(prepare: false, animate: true);
+            ShowSetupGuideStep(0, animate: true);
             return;
         }
 
@@ -656,6 +808,7 @@ public partial class PitLaunchView : Controls.UserControl
         }
         catch (Exception ex)
         {
+            ShowSetupGuideStep(1, animate: true);
             ShowSetupHardwareError(ex.Message);
         }
     }
@@ -699,6 +852,52 @@ public partial class PitLaunchView : Controls.UserControl
     {
         Profile? target = _coordinator.Document.Profiles.FirstOrDefault(profile => profile.Id == profileId);
         if (target is null) return;
+
+        // Required-update and startup-policy gates are enforced in the coordinator for every
+        // entry point. Skip readiness/confirmation UI here so a tray click cannot leave a hidden
+        // confirmation dialog behind the non-dismissible update screen.
+        if (_coordinator.SwitchBlockReason is not null)
+        {
+            await _coordinator.ActivateAsync(profileId, source);
+            return;
+        }
+
+        if (RequiresConfirmation(source) && !bypassConfirm)
+        {
+            ReadinessReport readiness = _coordinator.CheckReadiness(target);
+            if (!readiness.CanSwitch)
+            {
+                _selectedProfileId = target.Id;
+                PopulateProfile();
+                ShowHardwareTab();
+                Navigate(AppPage.Profile);
+                ShowReadiness(readiness);
+                ShowToast("Setup is not ready", "Open Hardware to see what must be connected or corrected.", "ErrorBrush");
+                return;
+            }
+
+            if (!readiness.IsReady)
+            {
+                if (_dialogMode != DialogMode.None)
+                {
+                    ShowToast("Switch not started", "Finish the open dialog, then try again.", "WarningBrush");
+                    return;
+                }
+                if (!_owner.Visible) _owner.ShowWindow();
+                string detail = string.Join("\n", readiness.Items
+                    .Where(item => item.Severity != OperationSeverity.Info)
+                    .Take(5)
+                    .Select(item => $"• {item.Area}: {item.Message}"));
+                bool continueSwitch = await ShowConfirmDialogAsync(
+                    $"Switch to {target.Name} anyway?",
+                    "PitLaunch found a few things to check:\n\n" + detail,
+                    "Switch anyway",
+                    false);
+                if (!continueSwitch) return;
+                bypassConfirm = true;
+            }
+        }
+
         if (ShouldConfirmSwitch(_coordinator.Document.Settings.ConfirmBeforeSwitch, bypassConfirm, source))
         {
             if (_dialogMode != DialogMode.None)
@@ -726,6 +925,28 @@ public partial class PitLaunchView : Controls.UserControl
         {
             _owner.HideToTray();
         }
+    }
+
+    private async void ToggleSetup_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        bool found = await ToggleDeskRigAsync(ActivationSource.User);
+        if (!found)
+            ShowToast("Two setups needed", "Create both a Desk and Sim Racing setup to use one-tap toggle.", "WarningBrush");
+    }
+
+    internal async Task<bool> ToggleDeskRigAsync(ActivationSource source)
+    {
+        Profile? target = _coordinator.FindDeskRigToggleTarget();
+        if (target is null) return false;
+        await ActivateProfileAsync(target.Id, source);
+        return true;
+    }
+
+    private async void UndoSwitch_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        OperationReport report = await _coordinator.UndoLastSwitchAsync();
+        ShowReport(report);
+        RefreshAll();
     }
 
     internal async Task<OperationReport> RestoreAllDisplaysAsync()
@@ -812,11 +1033,20 @@ public partial class PitLaunchView : Controls.UserControl
         RefreshHome();
         RefreshSettings();
         if (_page == AppPage.Profile) PopulateProfile();
+        if (_page == AppPage.Games) RefreshGamesProfilePicker();
+        if (_page == AppPage.Integrations) RefreshIntegrationsProfilePicker();
     }
 
     private void RefreshHome()
     {
         Profile? active = _coordinator.ActiveProfile;
+        bool hasTogglePair = _coordinator.Document.Profiles.Count >= 2;
+        ToggleSetupButton.Visibility = !_startupChooser && hasTogglePair
+            ? Wpf.Visibility.Visible
+            : Wpf.Visibility.Collapsed;
+        UndoSwitchButton.Visibility = !_startupChooser && _coordinator.CanUndo
+            ? Wpf.Visibility.Visible
+            : Wpf.Visibility.Collapsed;
         CurrentStrip.Visibility = !_startupChooser && active is not null
             ? Wpf.Visibility.Visible
             : Wpf.Visibility.Collapsed;
@@ -1923,15 +2153,244 @@ public partial class PitLaunchView : Controls.UserControl
         PopulateSetupIdentityPickers(profile);
         PopulateAudioPickers(profile);
         BuildMonitorMap(profile);
+        PopulateSessionOptions(profile);
+        ReadinessSummary.Text = "Check displays, sound, applications, and controllers without switching.";
+        ReadinessSummary.Foreground = Brush("MutedBrush");
+        ReadinessItemsPanel.Children.Clear();
 
         HotkeyInput.Text = profile.Hotkey;
         _hotkeyCommitted = profile.Hotkey;
         AppsPanel.Children.Clear();
         foreach (AppRule app in profile.Apps) AddAppEditor(app);
-        GamesPanel.Children.Clear();
-        foreach (string process in profile.GameProcesses) AddGameEditor(process);
         if (profile.Apps.Count == 0) AddListEmptyState(AppsPanel, "No applications added");
-        if (profile.GameProcesses.Count == 0) AddListEmptyState(GamesPanel, "No game processes added");
+    }
+
+    private void RefreshGamesProfilePicker()
+    {
+        _refreshingFeaturePicker = true;
+        try
+        {
+            List<ProfilePickerOption> options = _coordinator.Document.Profiles
+                .Select(profile => new ProfilePickerOption(profile.Id, profile.Name))
+                .ToList();
+            Guid? desired = options.Any(option => option.Id == _gamesProfileId)
+                ? _gamesProfileId
+                : PreferredFeatureProfileId(options);
+            GamesProfilePicker.ItemsSource = options;
+            GamesProfilePicker.SelectedItem = options.FirstOrDefault(option => option.Id == desired);
+            _gamesProfileId = desired;
+        }
+        finally
+        {
+            _refreshingFeaturePicker = false;
+        }
+
+        PopulateGamesEditor(SelectedGamesProfile());
+    }
+
+    private void RefreshIntegrationsProfilePicker()
+    {
+        _refreshingFeaturePicker = true;
+        try
+        {
+            List<ProfilePickerOption> options = _coordinator.Document.Profiles
+                .Select(profile => new ProfilePickerOption(profile.Id, profile.Name))
+                .ToList();
+            Guid? desired = options.Any(option => option.Id == _integrationsProfileId)
+                ? _integrationsProfileId
+                : PreferredFeatureProfileId(options);
+            IntegrationsProfilePicker.ItemsSource = options;
+            IntegrationsProfilePicker.SelectedItem = options.FirstOrDefault(option => option.Id == desired);
+            _integrationsProfileId = desired;
+        }
+        finally
+        {
+            _refreshingFeaturePicker = false;
+        }
+
+        PopulateDiscordEditor(SelectedIntegrationsProfile()?.Discord ?? new DiscordSettings());
+    }
+
+    private Guid? PreferredFeatureProfileId(IReadOnlyCollection<ProfilePickerOption> options)
+    {
+        Guid? active = _coordinator.Document.Runtime.ActiveProfileId;
+        if (active.HasValue && options.Any(option => option.Id == active.Value)) return active;
+        return options.FirstOrDefault()?.Id;
+    }
+
+    private Profile? SelectedGamesProfile() => _gamesProfileId.HasValue
+        ? _coordinator.Document.Profiles.FirstOrDefault(profile => profile.Id == _gamesProfileId.Value)
+        : null;
+
+    private Profile? SelectedIntegrationsProfile() => _integrationsProfileId.HasValue
+        ? _coordinator.Document.Profiles.FirstOrDefault(profile => profile.Id == _integrationsProfileId.Value)
+        : null;
+
+    private void PopulateGamesEditor(Profile? profile)
+    {
+        GamesPanel.Children.Clear();
+        if (profile is null)
+        {
+            AddListEmptyState(GamesPanel, "Create a setup before adding game presets");
+            return;
+        }
+
+        foreach (GamePreset preset in profile.GamePresets) AddGameEditor(preset);
+        if (profile.GamePresets.Count == 0) AddListEmptyState(GamesPanel, "No game presets for this setup");
+    }
+
+    private void PopulateDiscordEditor(DiscordSettings settings)
+    {
+        settings ??= new DiscordSettings();
+        DiscordLaunchToggle.IsChecked = settings.LaunchOnActivate;
+        DiscordVolumeInput.Text = settings.VolumePercent?.ToString() ?? string.Empty;
+        DiscordMuteHotkeyInput.Text = settings.MuteToggleHotkey;
+        DiscordDeafenHotkeyInput.Text = settings.DeafenToggleHotkey;
+        DiscordOutputPicker.ItemsSource = CreateAudioPickerOptions(false, settings.OutputDeviceId, "Use setup output");
+        DiscordOutputPicker.SelectedItem = SelectAudioOption(DiscordOutputPicker.ItemsSource, settings.OutputDeviceId);
+        DiscordMicrophonePicker.ItemsSource = CreateAudioPickerOptions(true, settings.MicrophoneDeviceId, "Use setup microphone");
+        DiscordMicrophonePicker.SelectedItem = SelectAudioOption(DiscordMicrophonePicker.ItemsSource, settings.MicrophoneDeviceId);
+    }
+
+    private List<AudioPickerOption> CreateAudioPickerOptions(bool capture, string? savedId, string inheritedLabel)
+    {
+        List<AudioPickerOption> options =
+        [
+            new(null, inheritedLabel, inheritedLabel),
+            .. _coordinator.ListAudioDevices(capture)
+                .Select(device => new AudioPickerOption(device.Id, device.Name, device.Name))
+        ];
+        if (!string.IsNullOrWhiteSpace(savedId) &&
+            !options.Any(option => string.Equals(option.Id, savedId, StringComparison.OrdinalIgnoreCase)))
+        {
+            options.Add(new AudioPickerOption(savedId, "Unavailable endpoint", "Saved endpoint (not connected)"));
+        }
+        return options;
+    }
+
+    private static AudioPickerOption SelectAudioOption(object? itemsSource, string? savedId)
+    {
+        List<AudioPickerOption> options = (itemsSource as IEnumerable<AudioPickerOption>)?.ToList() ?? [];
+        return options.FirstOrDefault(option =>
+                   string.Equals(option.Id ?? string.Empty, savedId ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+               ?? options.First();
+    }
+
+    private void PopulateSessionOptions(Profile profile)
+    {
+        KeepAwakeToggle.IsChecked = profile.KeepAwake;
+
+        List<PowerPlanPickerOption> powerPlans =
+        [
+            new(string.Empty, "Leave the current power plan unchanged"),
+            .. _coordinator.ListPowerPlans().Select(plan =>
+                new PowerPlanPickerOption(plan.Guid, plan.Name + (plan.IsActive ? " (active)" : string.Empty)))
+        ];
+        PowerPlanPicker.ItemsSource = powerPlans;
+        PowerPlanPicker.SelectedItem = powerPlans.FirstOrDefault(option =>
+            string.Equals(option.Guid, profile.PowerPlanGuid, StringComparison.OrdinalIgnoreCase)) ?? powerPlans[0];
+
+        List<HdrPickerOption> hdrOptions =
+        [
+            new(null, "Leave HDR unchanged"),
+            new(true, "Turn HDR on"),
+            new(false, "Turn HDR off")
+        ];
+        HdrModePicker.ItemsSource = hdrOptions;
+        HdrModePicker.SelectedItem = hdrOptions.First(option => option.Value == profile.EnableHdr);
+        HdrStatus hdr = _coordinator.GetHdrStatus();
+        HdrModePicker.IsEnabled = hdr.IsSupported;
+        HdrCapabilityText.Text = hdr.IsSupported
+            ? $"{hdr.SupportedDisplayCount} active HDR-capable display{(hdr.SupportedDisplayCount == 1 ? string.Empty : "s")} detected."
+            : "No active HDR-capable display detected; this option will become available when one is connected.";
+
+        PopulateExpectedControllers(profile);
+    }
+
+    private void PopulateExpectedControllers(Profile profile)
+    {
+        ExpectedControllersPanel.Children.Clear();
+        Dictionary<string, bool> controllers = _coordinator.ListControllers()
+            .Select(device => device.Name)
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .ToDictionary(name => name, _ => true, StringComparer.CurrentCultureIgnoreCase);
+        foreach (string saved in profile.ExpectedControllers)
+            controllers.TryAdd(saved, false);
+
+        if (controllers.Count == 0)
+        {
+            ExpectedControllersPanel.Children.Add(Text(
+                "No wheel, pedals, gamepad, or button box is connected.", 12, Brush("FaintBrush")));
+            return;
+        }
+
+        foreach ((string name, bool connected) in controllers.OrderBy(pair => pair.Key, StringComparer.CurrentCultureIgnoreCase))
+        {
+            Controls.CheckBox check = new()
+            {
+                Content = connected ? name : name + " (not connected)",
+                Tag = name,
+                IsChecked = profile.ExpectedControllers.Contains(name, StringComparer.CurrentCultureIgnoreCase),
+                Margin = new Wpf.Thickness(0, 0, 0, 7),
+                Foreground = connected ? Brush("TextBrush") : Brush("WarningBrush")
+            };
+            ExpectedControllersPanel.Children.Add(check);
+        }
+    }
+
+    private void RefreshControllers_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (SelectedProfile() is Profile profile) PopulateExpectedControllers(profile);
+    }
+
+    private void SaveSessionOptions_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        Profile? profile = SelectedProfile();
+        if (profile is null) return;
+        profile.KeepAwake = KeepAwakeToggle.IsChecked == true;
+        profile.PowerPlanGuid = (PowerPlanPicker.SelectedItem as PowerPlanPickerOption)?.Guid ?? string.Empty;
+        profile.EnableHdr = (HdrModePicker.SelectedItem as HdrPickerOption)?.Value;
+        profile.ExpectedControllers = ExpectedControllersPanel.Children.OfType<Controls.CheckBox>()
+            .Where(check => check.IsChecked == true && check.Tag is string)
+            .Select(check => (string)check.Tag)
+            .ToList();
+        try
+        {
+            _coordinator.SaveProfile(profile);
+            ShowToast("Session options saved", profile.Name, "AccentBrush");
+            PopulateSessionOptions(profile);
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+
+    private void CheckReadiness_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (SelectedProfile() is Profile profile) ShowReadiness(_coordinator.CheckReadiness(profile));
+    }
+
+    private void ShowReadiness(ReadinessReport readiness)
+    {
+        ReadinessItemsPanel.Children.Clear();
+        ReadinessSummary.Text = readiness.IsReady
+            ? "Ready to switch."
+            : readiness.CanSwitch ? "Ready with warnings." : "Not ready yet.";
+        ReadinessSummary.Foreground = readiness.IsReady
+            ? Brush("AccentBrush")
+            : readiness.CanSwitch ? Brush("WarningBrush") : Brush("ErrorBrush");
+
+        foreach (ReadinessItem item in readiness.Items)
+        {
+            Media.Brush color = item.Severity switch
+            {
+                OperationSeverity.Error => Brush("ErrorBrush"),
+                OperationSeverity.Warning => Brush("WarningBrush"),
+                _ => Brush("MutedBrush")
+            };
+            Controls.TextBlock line = Text($"{item.Area} — {item.Message}", 12, color);
+            line.TextWrapping = Wpf.TextWrapping.Wrap;
+            line.Margin = new Wpf.Thickness(0, 0, 0, 5);
+            ReadinessItemsPanel.Children.Add(line);
+        }
     }
 
     private void PopulateSetupIdentityPickers(Profile profile)
@@ -2148,11 +2607,36 @@ public partial class PitLaunchView : Controls.UserControl
         RemoveEmptyState(AppsPanel);
         Controls.TextBox path = CreateTextInput(rule.ExecutablePath);
         Controls.TextBox arguments = CreateTextInput(rule.Arguments);
+        Controls.TextBox order = CreateTextInput(rule.LaunchOrder.ToString());
+        Controls.TextBox delay = CreateTextInput(rule.DelayAfterStartSeconds.ToString());
+        Controls.TextBox readyTimeout = CreateTextInput(rule.ReadyTimeoutSeconds.ToString());
+        Controls.TextBox volume = CreateTextInput(rule.VolumePercent?.ToString() ?? string.Empty);
         Controls.CheckBox start = Toggle("Start", rule.StartOnActivate);
         Controls.CheckBox close = Toggle("Close on leave", rule.CloseOnDeactivate);
         Controls.CheckBox force = Toggle("Force close", rule.ForceClose);
         Controls.CheckBox hidden = Toggle("Start hidden", rule.StartHidden);
-        AppEditorState state = new(path, arguments, start, close, force, hidden);
+        Controls.CheckBox waitForReady = Toggle("Wait until responsive", rule.WaitForReady);
+        List<AudioPickerOption> audioOptions =
+        [
+            new(null, "System default", "Leave app audio route unchanged"),
+            .. _coordinator.ListAudioDevices(false).Select(device => new AudioPickerOption(device.Id, device.Name, device.Name))
+        ];
+        if (!string.IsNullOrWhiteSpace(rule.AudioDeviceId) &&
+            !audioOptions.Any(option => string.Equals(option.Id, rule.AudioDeviceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            audioOptions.Add(new AudioPickerOption(rule.AudioDeviceId, "Unavailable endpoint", "Saved endpoint (not connected)"));
+        }
+        Controls.ComboBox appAudio = new()
+        {
+            Style = GetStyle("Picker"),
+            ItemsSource = audioOptions,
+            SelectedItem = audioOptions.FirstOrDefault(option =>
+                string.Equals(option.Id ?? string.Empty, rule.AudioDeviceId ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                ?? audioOptions[0],
+            MinWidth = 230
+        };
+        AppEditorState state = new(
+            path, arguments, start, close, force, hidden, order, delay, waitForReady, readyTimeout, appAudio, volume);
 
         Controls.Border row = new()
         {
@@ -2165,6 +2649,7 @@ public partial class PitLaunchView : Controls.UserControl
             Tag = state
         };
         Controls.Grid layout = new();
+        layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
         layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
         layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
         layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
@@ -2203,8 +2688,59 @@ public partial class PitLaunchView : Controls.UserControl
         }
         Controls.Grid.SetRow(toggles, 3);
         layout.Children.Add(toggles);
+
+        Controls.Expander advanced = new()
+        {
+            Header = "Launch order and app audio",
+            Margin = new Wpf.Thickness(0, 12, 0, 0),
+            Foreground = Brush("MutedBrush")
+        };
+        Controls.Grid advancedGrid = new() { Margin = new Wpf.Thickness(0, 10, 0, 0) };
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(82) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(12) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(105) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(12) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(12) });
+        advancedGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(82) });
+
+        Controls.StackPanel orderField = LabeledField("Order", order);
+        Controls.StackPanel delayField = LabeledField("Delay (sec)", delay);
+        Controls.StackPanel audioField = LabeledField("Output device", appAudio);
+        Controls.StackPanel volumeField = LabeledField("Volume %", volume);
+        Controls.Grid.SetColumn(delayField, 2);
+        Controls.Grid.SetColumn(audioField, 4);
+        Controls.Grid.SetColumn(volumeField, 6);
+        advancedGrid.Children.Add(orderField);
+        advancedGrid.Children.Add(delayField);
+        advancedGrid.Children.Add(audioField);
+        advancedGrid.Children.Add(volumeField);
+        advancedGrid.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+        advancedGrid.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+        Controls.StackPanel readiness = new() { Orientation = Controls.Orientation.Horizontal, Margin = new Wpf.Thickness(0, 10, 0, 0) };
+        waitForReady.Margin = new Wpf.Thickness(0, 0, 18, 0);
+        readyTimeout.Width = 72;
+        readiness.Children.Add(waitForReady);
+        readiness.Children.Add(Text("Timeout (sec)", 12, Brush("MutedBrush")));
+        readyTimeout.Margin = new Wpf.Thickness(8, 0, 0, 0);
+        readiness.Children.Add(readyTimeout);
+        Controls.Grid.SetRow(readiness, 1);
+        Controls.Grid.SetColumnSpan(readiness, 7);
+        advancedGrid.Children.Add(readiness);
+        advanced.Content = advancedGrid;
+        Controls.Grid.SetRow(advanced, 4);
+        layout.Children.Add(advanced);
         row.Child = layout;
         AppsPanel.Children.Add(row);
+    }
+
+    private Controls.StackPanel LabeledField(string label, Wpf.FrameworkElement control)
+    {
+        Controls.StackPanel panel = new();
+        panel.Children.Add(Text(label, 11, Brush("MutedBrush")));
+        control.Margin = new Wpf.Thickness(0, 5, 0, 0);
+        panel.Children.Add(control);
+        return panel;
     }
 
     private void HotkeyInput_PreviewKeyDown(object sender, Input.KeyEventArgs e)
@@ -2263,6 +2799,61 @@ public partial class PitLaunchView : Controls.UserControl
         if (HotkeyInput.Text.EndsWith("...", StringComparison.Ordinal)) HotkeyInput.Text = _hotkeyCommitted;
     }
 
+    private void ToggleHotkeyInput_PreviewKeyDown(object sender, Input.KeyEventArgs e)
+    {
+        Input.Key key = e.Key == Input.Key.System ? e.SystemKey : e.Key;
+        if (key == Input.Key.Escape) return;
+        if (key == Input.Key.Tab && Input.Keyboard.Modifiers == Input.ModifierKeys.None) return;
+        e.Handled = true;
+
+        if (key is Input.Key.Back or Input.Key.Delete)
+        {
+            _toggleHotkeyCommitted = string.Empty;
+            ToggleHotkeyInput.Text = string.Empty;
+            return;
+        }
+
+        string prefix = ModifierPrefix(Input.Keyboard.Modifiers);
+        if (IsModifierKey(key))
+        {
+            ToggleHotkeyInput.Text = prefix + "...";
+            return;
+        }
+
+        int virtualKey = Input.KeyInterop.VirtualKeyFromKey(key);
+        Keys keyCode = (Keys)virtualKey & Keys.KeyCode;
+        if (virtualKey <= 0 || keyCode == Keys.None) return;
+        bool isFunctionKey = keyCode is >= Keys.F1 and <= Keys.F24;
+        Input.ModifierKeys primary = Input.ModifierKeys.Control | Input.ModifierKeys.Alt | Input.ModifierKeys.Windows;
+        if (!isFunctionKey && (Input.Keyboard.Modifiers & primary) == Input.ModifierKeys.None)
+        {
+            ToggleHotkeyInput.Text = _toggleHotkeyCommitted;
+            ShowToast("Add a modifier key", "Hold Ctrl, Alt, or Win with that key, or use a function key.", "WarningBrush");
+            return;
+        }
+
+        string gesture = prefix + keyCode;
+        if (!HotkeyParser.TryParse(gesture, out _, out string error))
+        {
+            ToggleHotkeyInput.Text = _toggleHotkeyCommitted;
+            ShowToast("Hotkey not recorded", error, "WarningBrush");
+            return;
+        }
+        _toggleHotkeyCommitted = gesture;
+        ToggleHotkeyInput.Text = gesture;
+    }
+
+    private void ToggleHotkeyInput_PreviewKeyUp(object sender, Input.KeyEventArgs e) => RevertPartialToggleHotkey();
+
+    private void ToggleHotkeyInput_LostKeyboardFocus(object sender, Input.KeyboardFocusChangedEventArgs e) =>
+        RevertPartialToggleHotkey();
+
+    private void RevertPartialToggleHotkey()
+    {
+        if (ToggleHotkeyInput.Text.EndsWith("...", StringComparison.Ordinal))
+            ToggleHotkeyInput.Text = _toggleHotkeyCommitted;
+    }
+
     private static bool IsModifierKey(Input.Key key) => key is Input.Key.LeftCtrl or Input.Key.RightCtrl
         or Input.Key.LeftAlt or Input.Key.RightAlt or Input.Key.LeftShift or Input.Key.RightShift
         or Input.Key.LWin or Input.Key.RWin;
@@ -2277,7 +2868,9 @@ public partial class PitLaunchView : Controls.UserControl
         return prefix;
     }
 
-    private void AddGameEditor(string process)
+    private void AddGameEditor(string process) => AddGameEditor(new GamePreset { ProcessName = process });
+
+    private void AddGameEditor(GamePreset preset)
     {
         RemoveEmptyState(GamesPanel);
         Controls.ComboBox input = new()
@@ -2285,10 +2878,77 @@ public partial class PitLaunchView : Controls.UserControl
             Style = GetStyle("Picker"),
             IsEditable = true,
             ItemsSource = GameDetectionService.RunningProcessCandidates(),
-            Text = process,
-            ToolTip = "Pick a running app from the list or type a process name, for example acs.exe"
+            Text = preset.ProcessName,
+            ToolTip = "Pick a running app or type the game's process name, for example acs.exe"
         };
-        GameEditorState state = new(input);
+        Wpf.Automation.AutomationProperties.SetName(input, "Game process");
+
+        Controls.ComboBox gameOutput = AudioPicker(false, preset.AudioDeviceId, "Use setup output", "Game output device");
+        Controls.TextBox gameVolume = CreateTextInput(preset.VolumePercent?.ToString() ?? string.Empty);
+        Wpf.Automation.AutomationProperties.SetName(gameVolume, "Game volume");
+        Controls.TextBox extraApps = CreateTextInput(string.Join(Environment.NewLine,
+            preset.Apps.Select(app => app.ExecutablePath)));
+        extraApps.AcceptsReturn = true;
+        extraApps.TextWrapping = Wpf.TextWrapping.NoWrap;
+        extraApps.Height = 72;
+        extraApps.VerticalContentAlignment = Wpf.VerticalAlignment.Top;
+        Wpf.Automation.AutomationProperties.SetName(extraApps, "Preset applications");
+        Controls.CheckBox closeApps = Toggle("Close these apps when the game ends",
+            preset.Apps.Any(app => app.CloseOnDeactivate));
+
+        Controls.CheckBox customizeDiscord = Toggle("Customize Discord for this game", preset.CustomizeDiscord);
+        Controls.CheckBox discordLaunch = Toggle("Launch Discord", preset.Discord.LaunchOnActivate);
+        Controls.CheckBox discordMuteSession = Toggle("Mute for this game session", preset.ToggleDiscordMuteForSession);
+        Controls.CheckBox discordDeafenSession = Toggle("Deafen for this game session", preset.ToggleDiscordDeafenForSession);
+        Controls.ComboBox discordOutput = AudioPicker(false, preset.Discord.OutputDeviceId, "Inherit setup Discord output", "Game Discord output");
+        Controls.ComboBox discordMicrophone = AudioPicker(true, preset.Discord.MicrophoneDeviceId, "Inherit setup Discord microphone", "Game Discord microphone");
+        Controls.TextBox discordVolume = CreateTextInput(preset.Discord.VolumePercent?.ToString() ?? string.Empty);
+        Wpf.Automation.AutomationProperties.SetName(discordVolume, "Game Discord volume");
+
+        Controls.StackPanel discordFields = new() { Margin = new Wpf.Thickness(0, 10, 0, 0) };
+        discordLaunch.Margin = new Wpf.Thickness(0, 0, 0, 10);
+        discordFields.Children.Add(discordLaunch);
+        Controls.WrapPanel discordActions = new() { Margin = new Wpf.Thickness(0, 0, 0, 10) };
+        discordMuteSession.Margin = new Wpf.Thickness(0, 0, 22, 0);
+        discordActions.Children.Add(discordMuteSession);
+        discordActions.Children.Add(discordDeafenSession);
+        discordFields.Children.Add(discordActions);
+        Controls.Grid discordGrid = new();
+        discordGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        discordGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(10) });
+        discordGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        discordGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(10) });
+        discordGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(82) });
+        Controls.StackPanel discordOutputField = LabeledField("Output", discordOutput);
+        Controls.StackPanel discordMicField = LabeledField("Microphone", discordMicrophone);
+        Controls.StackPanel discordVolumeField = LabeledField("Volume %", discordVolume);
+        Controls.Grid.SetColumn(discordMicField, 2);
+        Controls.Grid.SetColumn(discordVolumeField, 4);
+        discordGrid.Children.Add(discordOutputField);
+        discordGrid.Children.Add(discordMicField);
+        discordGrid.Children.Add(discordVolumeField);
+        discordFields.Children.Add(discordGrid);
+        discordFields.Children.Add(Text(
+            "Microphone follows Windows communications input when Discord is set to Default.",
+            11, Brush("FaintBrush")));
+        discordFields.IsEnabled = preset.CustomizeDiscord;
+        customizeDiscord.Checked += (_, _) => discordFields.IsEnabled = true;
+        customizeDiscord.Unchecked += (_, _) => discordFields.IsEnabled = false;
+
+        GameEditorState state = new(
+            preset.Id,
+            input,
+            gameOutput,
+            gameVolume,
+            extraApps,
+            closeApps,
+            customizeDiscord,
+            discordLaunch,
+            discordMuteSession,
+            discordDeafenSession,
+            discordOutput,
+            discordMicrophone,
+            discordVolume);
         Controls.Border row = new()
         {
             Background = Brush("SurfaceBrush"),
@@ -2300,10 +2960,13 @@ public partial class PitLaunchView : Controls.UserControl
             Tag = state
         };
         Controls.Grid layout = new();
-        layout.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
-        layout.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = Wpf.GridLength.Auto });
-        layout.Children.Add(input);
-        Controls.Button remove = IconButton(Fluent.SymbolRegular.Delete24, "Remove process");
+        layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+        layout.RowDefinitions.Add(new Controls.RowDefinition { Height = Wpf.GridLength.Auto });
+        Controls.Grid header = new();
+        header.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = Wpf.GridLength.Auto });
+        header.Children.Add(input);
+        Controls.Button remove = IconButton(Fluent.SymbolRegular.Delete24, "Remove game preset");
         remove.Margin = new Wpf.Thickness(8, 1, 0, 1);
         remove.Click += (_, _) =>
         {
@@ -2311,9 +2974,73 @@ public partial class PitLaunchView : Controls.UserControl
             if (GamesPanel.Children.Count == 0) AddListEmptyState(GamesPanel, "No game processes added");
         };
         Controls.Grid.SetColumn(remove, 1);
-        layout.Children.Add(remove);
+        header.Children.Add(remove);
+        layout.Children.Add(header);
+
+        Controls.StackPanel fields = new() { Margin = new Wpf.Thickness(0, 10, 0, 0) };
+        Controls.Grid gameAudioGrid = new();
+        gameAudioGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(1, Wpf.GridUnitType.Star) });
+        gameAudioGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(10) });
+        gameAudioGrid.ColumnDefinitions.Add(new Controls.ColumnDefinition { Width = new Wpf.GridLength(90) });
+        Controls.StackPanel gameOutputField = LabeledField("Game output", gameOutput);
+        Controls.StackPanel gameVolumeField = LabeledField("Game volume %", gameVolume);
+        Controls.Grid.SetColumn(gameVolumeField, 2);
+        gameAudioGrid.Children.Add(gameOutputField);
+        gameAudioGrid.Children.Add(gameVolumeField);
+        fields.Children.Add(gameAudioGrid);
+        Controls.TextBlock appsLabel = Text("Apps to start (one .exe or link per line)", 11, Brush("MutedBrush"));
+        appsLabel.Margin = new Wpf.Thickness(0, 12, 0, 5);
+        fields.Children.Add(appsLabel);
+        fields.Children.Add(extraApps);
+        Controls.Grid appActions = new() { Margin = new Wpf.Thickness(0, 8, 0, 0) };
+        closeApps.VerticalAlignment = Wpf.VerticalAlignment.Center;
+        appActions.Children.Add(closeApps);
+        Controls.Button browsePresetApp = Button("Browse app", "QuietButton");
+        browsePresetApp.HorizontalAlignment = Wpf.HorizontalAlignment.Right;
+        Wpf.Automation.AutomationProperties.SetName(browsePresetApp, "Browse preset application");
+        browsePresetApp.Click += (_, _) =>
+        {
+            using Forms.OpenFileDialog dialog = new()
+            {
+                Title = "Choose an application for this game preset",
+                Filter = "Applications (*.exe)|*.exe|All files (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (dialog.ShowDialog(_owner) != Forms.DialogResult.OK) return;
+            string separator = string.IsNullOrWhiteSpace(extraApps.Text) ? string.Empty : Environment.NewLine;
+            extraApps.Text += separator + dialog.FileName;
+        };
+        appActions.Children.Add(browsePresetApp);
+        fields.Children.Add(appActions);
+        customizeDiscord.Margin = new Wpf.Thickness(0, 14, 0, 0);
+        fields.Children.Add(customizeDiscord);
+        fields.Children.Add(discordFields);
+
+        Controls.Expander advanced = new()
+        {
+            Header = preset.HasOverrides ? "Game preset · customized" : "Customize this game",
+            Content = fields,
+            Margin = new Wpf.Thickness(0, 5, 0, 0),
+            Foreground = Brush("MutedBrush")
+        };
+        Controls.Grid.SetRow(advanced, 1);
+        layout.Children.Add(advanced);
         row.Child = layout;
         GamesPanel.Children.Add(row);
+    }
+
+    private Controls.ComboBox AudioPicker(bool capture, string? savedId, string inheritedLabel, string automationName)
+    {
+        List<AudioPickerOption> options = CreateAudioPickerOptions(capture, savedId, inheritedLabel);
+        Controls.ComboBox picker = new()
+        {
+            Style = GetStyle("Picker"),
+            ItemsSource = options,
+            SelectedItem = SelectAudioOption(options, savedId)
+        };
+        Wpf.Automation.AutomationProperties.SetName(picker, automationName);
+        return picker;
     }
 
     private void AddListEmptyState(Controls.StackPanel panel, string text)
@@ -2348,6 +3075,13 @@ public partial class PitLaunchView : Controls.UserControl
         DetectionToggle.IsChecked = settings.GameDetectionEnabled;
         _pollSeconds = Math.Clamp(settings.GamePollSeconds, 1, 30);
         PollValue.Text = _pollSeconds.ToString();
+        _gameExitGraceSeconds = Math.Clamp(settings.GameExitGraceSeconds, 0, 120);
+        GraceValue.Text = _gameExitGraceSeconds == 1
+            ? "1 sec"
+            : $"{_gameExitGraceSeconds} sec";
+        _toggleHotkeyCommitted = settings.ToggleHotkey;
+        ToggleHotkeyInput.Text = settings.ToggleHotkey;
+        DiagnosticsVersionText.Text = $"{AppInfo.ProductName} {AppInfo.Version}";
         RefreshReliableStartupStatus();
     }
 
@@ -2378,10 +3112,19 @@ public partial class PitLaunchView : Controls.UserControl
 
     private void RefreshNavigationState()
     {
-        bool settings = _page == AppPage.Settings;
-        SetupsNav.Foreground = settings ? Brush("MutedBrush") : Brush("AccentBrush");
-        SettingsNav.Foreground = settings ? Brush("AccentBrush") : Brush("MutedBrush");
-        AnimateNavigationIndicator(settings ? 38 : 0);
+        AppPage active = _page == AppPage.Profile ? AppPage.Home : _page;
+        SetupsNav.Foreground = active == AppPage.Home ? Brush("AccentBrush") : Brush("MutedBrush");
+        GamesNav.Foreground = active == AppPage.Games ? Brush("AccentBrush") : Brush("MutedBrush");
+        IntegrationsNav.Foreground = active == AppPage.Integrations ? Brush("AccentBrush") : Brush("MutedBrush");
+        SettingsNav.Foreground = active == AppPage.Settings ? Brush("AccentBrush") : Brush("MutedBrush");
+        double target = active switch
+        {
+            AppPage.Games => 38,
+            AppPage.Integrations => 76,
+            AppPage.Settings => 114,
+            _ => 0
+        };
+        AnimateNavigationIndicator(target);
     }
 
     private void AnimateNavigationIndicator(double targetY)
@@ -2435,6 +3178,8 @@ public partial class PitLaunchView : Controls.UserControl
     private Wpf.FrameworkElement CurrentPageElement() => _page switch
     {
         AppPage.Profile => ProfilePage,
+        AppPage.Games => GamesPage,
+        AppPage.Integrations => IntegrationsPage,
         AppPage.Settings => SettingsPage,
         _ => HomePage
     };
@@ -2670,6 +3415,32 @@ public partial class PitLaunchView : Controls.UserControl
         Navigate(AppPage.Settings);
     }
 
+    private void Games_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        RefreshGamesProfilePicker();
+        Navigate(AppPage.Games);
+    }
+
+    private void Integrations_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        RefreshIntegrationsProfilePicker();
+        Navigate(AppPage.Integrations);
+    }
+
+    private void GamesProfilePicker_SelectionChanged(object sender, Controls.SelectionChangedEventArgs e)
+    {
+        if (_refreshingFeaturePicker) return;
+        _gamesProfileId = (GamesProfilePicker.SelectedItem as ProfilePickerOption)?.Id;
+        PopulateGamesEditor(SelectedGamesProfile());
+    }
+
+    private void IntegrationsProfilePicker_SelectionChanged(object sender, Controls.SelectionChangedEventArgs e)
+    {
+        if (_refreshingFeaturePicker) return;
+        _integrationsProfileId = (IntegrationsProfilePicker.SelectedItem as ProfilePickerOption)?.Id;
+        PopulateDiscordEditor(SelectedIntegrationsProfile()?.Discord ?? new DiscordSettings());
+    }
+
     private void Back_Click(object sender, Wpf.RoutedEventArgs e) => Navigate(AppPage.Home);
 
     private async void ProfileSwitch_Click(object sender, Wpf.RoutedEventArgs e)
@@ -2873,7 +3644,7 @@ public partial class PitLaunchView : Controls.UserControl
             add.Width = 68;
             add.IsEnabled = false;
             add.Style = GetStyle("SecondaryButton");
-            ShowToast("Game added", $"Save automation to switch to this setup when {game.Name} starts.", "AccentBrush");
+            ShowToast("Game added", $"Save game presets to switch to this setup when {game.Name} starts.", "AccentBrush");
         };
         Controls.Grid.SetColumn(add, 2);
         layout.Children.Add(add);
@@ -2951,7 +3722,7 @@ public partial class PitLaunchView : Controls.UserControl
         }
 
         AddGameEditor(process);
-        ShowToast("Game added", $"Save automation to switch to this setup when {process} starts.", "AccentBrush");
+        ShowToast("Game added", $"Save game presets to switch to this setup when {process} starts.", "AccentBrush");
     }
 
     private void SaveAutomation_Click(object sender, Wpf.RoutedEventArgs e)
@@ -2976,36 +3747,203 @@ public partial class PitLaunchView : Controls.UserControl
                 StartOnActivate = state.Start.IsChecked == true,
                 CloseOnDeactivate = state.Close.IsChecked == true,
                 ForceClose = state.Force.IsChecked == true,
-                StartHidden = state.Hidden.IsChecked == true
+                StartHidden = state.Hidden.IsChecked == true,
+                LaunchOrder = ParseBoundedInt(state.Order.Text, 0, 999, 0),
+                DelayAfterStartSeconds = ParseBoundedInt(state.Delay.Text, 0, 300, 0),
+                WaitForReady = state.WaitForReady.IsChecked == true,
+                ReadyTimeoutSeconds = ParseBoundedInt(state.ReadyTimeout.Text, 1, 300, 15),
+                AudioDeviceId = (state.AudioDevice.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+                VolumePercent = string.IsNullOrWhiteSpace(state.Volume.Text)
+                    ? null
+                    : ParseBoundedInt(state.Volume.Text, 0, 100, 100)
             })
-            .ToList();
-        List<string> gameProcesses = GamesPanel.Children.OfType<Controls.Border>()
-            .Select(row => row.Tag as GameEditorState)
-            .Where(state => state is not null && !string.IsNullOrWhiteSpace(state.Process.Text))
-            .Select(state => state!.Process.Text.Trim())
             .ToList();
 
         string previousHotkey = profile.Hotkey;
         List<AppRule> previousApps = profile.Apps;
-        List<string> previousGameProcesses = profile.GameProcesses;
         try
         {
             profile.Hotkey = hotkey;
             profile.Apps = apps;
-            profile.GameProcesses = gameProcesses;
             _coordinator.SaveProfile(profile);
-            if (TryArmGameDetection(profile)) return;
-            ShowToast("Automation saved", profile.Name, "AccentBrush");
+            ShowToast("Applications saved", profile.Name, "AccentBrush");
         }
         catch (Exception ex)
         {
             profile.Hotkey = previousHotkey;
             profile.Apps = previousApps;
-            profile.GameProcesses = previousGameProcesses;
             PopulateProfile();
             ShowError(ex.Message);
         }
     }
+
+    private void SaveGames_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        Profile? profile = SelectedGamesProfile();
+        if (profile is null)
+        {
+            ShowError("Create a setup before adding game presets.");
+            return;
+        }
+
+        List<GamePreset> gamePresets = GamesPanel.Children.OfType<Controls.Border>()
+            .Select(row => row.Tag as GameEditorState)
+            .Where(state => state is not null && !string.IsNullOrWhiteSpace(state.Process.Text))
+            .Select(state => new GamePreset
+            {
+                Id = state!.Id == Guid.Empty ? Guid.NewGuid() : state.Id,
+                ProcessName = GameDetectionService.NormalizeProcessName(state.Process.Text),
+                AudioDeviceId = (state.GameOutput.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+                VolumePercent = string.IsNullOrWhiteSpace(state.GameVolume.Text)
+                    ? null
+                    : ParseBoundedInt(state.GameVolume.Text, 0, 100, 100),
+                Apps = state.ExtraApps.Text
+                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(path => new AppRule
+                    {
+                        ExecutablePath = path,
+                        StartOnActivate = true,
+                        CloseOnDeactivate = state.CloseApps.IsChecked == true
+                    })
+                    .ToList(),
+                CustomizeDiscord = state.CustomizeDiscord.IsChecked == true,
+                ToggleDiscordMuteForSession = state.CustomizeDiscord.IsChecked == true && state.DiscordMuteSession.IsChecked == true,
+                ToggleDiscordDeafenForSession = state.CustomizeDiscord.IsChecked == true && state.DiscordDeafenSession.IsChecked == true,
+                Discord = new DiscordSettings
+                {
+                    LaunchOnActivate = state.DiscordLaunch.IsChecked == true,
+                    OutputDeviceId = (state.DiscordOutput.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+                    MicrophoneDeviceId = (state.DiscordMicrophone.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+                    VolumePercent = string.IsNullOrWhiteSpace(state.DiscordVolume.Text)
+                        ? null
+                        : ParseBoundedInt(state.DiscordVolume.Text, 0, 100, 100)
+                }
+            })
+            .ToList();
+        if (gamePresets.Any(preset => preset.ToggleDiscordMuteForSession) &&
+            string.IsNullOrWhiteSpace(profile.Discord.MuteToggleHotkey))
+        {
+            ShowError("Save the Discord mute keybind in Integrations before enabling a game's mute action.");
+            return;
+        }
+        if (gamePresets.Any(preset => preset.ToggleDiscordDeafenForSession) &&
+            string.IsNullOrWhiteSpace(profile.Discord.DeafenToggleHotkey))
+        {
+            ShowError("Save the Discord deafen keybind in Integrations before enabling a game's deafen action.");
+            return;
+        }
+        List<string> gameProcesses = gamePresets.Select(preset => preset.ProcessName).ToList();
+        string? duplicateProcess = gameProcesses
+            .GroupBy(GameDetectionService.NormalizeProcessName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1)?.Key;
+        if (!string.IsNullOrWhiteSpace(duplicateProcess))
+        {
+            ShowToast(
+                "Duplicate game preset",
+                $"{duplicateProcess} appears more than once in this setup. Keep one preset for that process.",
+                "WarningBrush");
+            return;
+        }
+
+        List<(string Process, string Profile)> conflicts = _coordinator.Document.Profiles
+            .Where(other => other.Id != profile.Id)
+            .SelectMany(other => other.GameProcesses
+                .Where(process => gameProcesses.Contains(process, StringComparer.OrdinalIgnoreCase))
+                .Select(process => (process, other.Name)))
+            .ToList();
+        if (conflicts.Count > 0)
+        {
+            (string process, string otherProfile) = conflicts[0];
+            ShowToast(
+                "Game already assigned",
+                $"{process} already switches to {otherProfile}. Remove it there before assigning it to {profile.Name}.",
+                "WarningBrush");
+            return;
+        }
+
+        List<string> previousGameProcesses = profile.GameProcesses;
+        List<GamePreset> previousGamePresets = profile.GamePresets;
+        try
+        {
+            profile.GameProcesses = gameProcesses;
+            profile.GamePresets = gamePresets;
+            _coordinator.SaveProfile(profile);
+            if (TryArmGameDetection(profile)) return;
+            ShowToast("Game presets saved", profile.Name, "AccentBrush");
+        }
+        catch (Exception ex)
+        {
+            profile.GameProcesses = previousGameProcesses;
+            profile.GamePresets = previousGamePresets;
+            PopulateGamesEditor(profile);
+            ShowError(ex.Message);
+        }
+    }
+
+    private void SaveDiscord_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        Profile? profile = SelectedIntegrationsProfile();
+        if (profile is null)
+        {
+            ShowError("Create a setup before configuring Discord.");
+            return;
+        }
+
+        foreach ((string Value, string Label, Controls.TextBox Input) in new[]
+                 {
+                     (DiscordMuteHotkeyInput.Text.Trim(), "Discord mute", DiscordMuteHotkeyInput),
+                     (DiscordDeafenHotkeyInput.Text.Trim(), "Discord deafen", DiscordDeafenHotkeyInput)
+                 })
+        {
+            if (string.IsNullOrWhiteSpace(Value) || HotkeyParser.TryParse(Value, out _, out string discordError)) continue;
+            ShowError($"{Label} keybind: {discordError}");
+            Input.Focus();
+            return;
+        }
+
+        DiscordSettings discord = new()
+        {
+            LaunchOnActivate = DiscordLaunchToggle.IsChecked == true,
+            OutputDeviceId = (DiscordOutputPicker.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+            MicrophoneDeviceId = (DiscordMicrophonePicker.SelectedItem as AudioPickerOption)?.Id ?? string.Empty,
+            VolumePercent = string.IsNullOrWhiteSpace(DiscordVolumeInput.Text)
+                ? null
+                : ParseBoundedInt(DiscordVolumeInput.Text, 0, 100, 100),
+            MuteToggleHotkey = DiscordMuteHotkeyInput.Text.Trim(),
+            DeafenToggleHotkey = DiscordDeafenHotkeyInput.Text.Trim()
+        };
+        if (profile.GamePresets.Any(preset => preset.ToggleDiscordMuteForSession) &&
+            string.IsNullOrWhiteSpace(discord.MuteToggleHotkey))
+        {
+            ShowError("This setup has a game preset that uses Discord mute. Enter its keybind first.");
+            DiscordMuteHotkeyInput.Focus();
+            return;
+        }
+        if (profile.GamePresets.Any(preset => preset.ToggleDiscordDeafenForSession) &&
+            string.IsNullOrWhiteSpace(discord.DeafenToggleHotkey))
+        {
+            ShowError("This setup has a game preset that uses Discord deafen. Enter its keybind first.");
+            DiscordDeafenHotkeyInput.Focus();
+            return;
+        }
+
+        DiscordSettings previous = profile.Discord;
+        try
+        {
+            profile.Discord = discord;
+            _coordinator.SaveProfile(profile);
+            ShowToast("Discord saved", profile.Name, "AccentBrush");
+        }
+        catch (Exception ex)
+        {
+            profile.Discord = previous;
+            PopulateDiscordEditor(previous);
+            ShowError(ex.Message);
+        }
+    }
+
+    private static int ParseBoundedInt(string value, int minimum, int maximum, int fallback) =>
+        int.TryParse(value, out int parsed) ? Math.Clamp(parsed, minimum, maximum) : fallback;
 
     // Adding a game to a setup is only meaningful with the master detection switch on, so turn it
     // on rather than saving a rule that silently never fires. Returns true when it reported itself.
@@ -3019,7 +3957,7 @@ public partial class PitLaunchView : Controls.UserControl
             RefreshSettings();
             AppLog.Info($"Game detection was switched on automatically because {profile.Name} now watches for a game.");
             ShowToast(
-                "Automation saved, game detection on",
+                "Game presets saved, detection on",
                 $"PitLaunch now watches for {string.Join(", ", profile.GameProcesses)} and switches to {profile.Name}.",
                 "AccentBrush");
             return true;
@@ -3030,7 +3968,7 @@ public partial class PitLaunchView : Controls.UserControl
             AppLog.Error("Could not switch game detection on automatically: " + ex.Message);
             ShowToast(
                 "Automation saved, but detection is off",
-                "Turn on \"Detect racing games\" in Settings to make it switch automatically.",
+                "Turn on Game detection on the Games page to make it switch automatically.",
                 "WarningBrush");
             return true;
         }
@@ -3046,6 +3984,18 @@ public partial class PitLaunchView : Controls.UserControl
     {
         _pollSeconds = Math.Min(30, _pollSeconds + 1);
         PollValue.Text = _pollSeconds.ToString();
+    }
+
+    private void GraceDown_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        _gameExitGraceSeconds = Math.Max(0, _gameExitGraceSeconds - 1);
+        GraceValue.Text = _gameExitGraceSeconds == 1 ? "1 sec" : $"{_gameExitGraceSeconds} sec";
+    }
+
+    private void GraceUp_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        _gameExitGraceSeconds = Math.Min(120, _gameExitGraceSeconds + 1);
+        GraceValue.Text = _gameExitGraceSeconds == 1 ? "1 sec" : $"{_gameExitGraceSeconds} sec";
     }
 
     private void RefreshUpdateSection()
@@ -3068,25 +4018,19 @@ public partial class PitLaunchView : Controls.UserControl
             : "Portable copy. Install with Setup.exe to get small automatic updates.";
     }
 
-    /// <summary>Looks for an update quietly after launch and raises the sidebar banner if one exists.</summary>
-    private async Task CheckForUpdatesInBackgroundAsync()
+    internal void ApplyStartupUpdateStatus(UpdateStatus status)
     {
-        if (!_updates.IsInstalledCopy) return;
-        await Task.Delay(TimeSpan.FromSeconds(8));
-        try
+        RunOnUi(() =>
         {
-            UpdateStatus status = await _updates.CheckAsync();
-            if (!status.CanInstall) return;
-            RunOnUi(() =>
+            if (status.IsRequired)
             {
-                _pendingUpdate = status.Update;
-                ShowUpdateBanner(status.Update!.TargetFullRelease.Version.ToString());
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLog.Error("Background update check failed: " + ex.Message);
-        }
+                ShowRequiredUpdate(status);
+                return;
+            }
+            if (!status.CanInstall) return;
+            _pendingUpdate = status.Update;
+            ShowUpdateBanner(status.Update!.TargetFullRelease.Version.ToString());
+        });
     }
 
     private void ShowUpdateBanner(string version)
@@ -3131,8 +4075,15 @@ public partial class PitLaunchView : Controls.UserControl
         try
         {
             UpdateStatus status = await _updates.CheckAsync();
+            _coordinator.SetSwitchBlockReason(status.IsRequired
+                ? status.Message + " Update PitLaunch before switching setups."
+                : null);
             UpdateStatusText.Text = status.Message;
-            if (status.CanInstall)
+            if (status.IsRequired)
+            {
+                ShowRequiredUpdate(status);
+            }
+            else if (status.CanInstall)
             {
                 _pendingUpdate = status.Update;
                 InstallUpdateButton.Visibility = Wpf.Visibility.Visible;
@@ -3148,6 +4099,70 @@ public partial class PitLaunchView : Controls.UserControl
         {
             CheckUpdateButton.IsEnabled = true;
         }
+    }
+
+    private void ShowRequiredUpdate(UpdateStatus status)
+    {
+        _coordinator.SetSwitchBlockReason(
+            status.Message + " Update PitLaunch before switching setups from any control.");
+        _requiredUpdate = status;
+        _pendingUpdate = status.Update;
+        RequiredUpdateVersionText.Text = string.IsNullOrWhiteSpace(status.MinimumRequiredVersion)
+            ? "A SUPPORTED RELEASE IS REQUIRED"
+            : $"VERSION {status.MinimumRequiredVersion} OR NEWER REQUIRED";
+        RequiredUpdateBody.Text = status.Message;
+        RequiredUpdateButton.Content = status.CanInstall
+            ? "Install update and restart"
+            : "Open the download page";
+        RequiredUpdateButton.IsEnabled = true;
+        RequiredUpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+        RequiredUpdateLayer.Visibility = Wpf.Visibility.Visible;
+        RequiredUpdateLayer.Focus();
+    }
+
+    private async void RequiredUpdate_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        if (_requiredUpdate is null) return;
+        if (!_requiredUpdate.CanInstall || _requiredUpdate.Update is null)
+        {
+            try
+            {
+                using Process? process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = _requiredUpdate.DownloadUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex) { RequiredUpdateBody.Text = "Could not open the download page: " + ex.Message; }
+            return;
+        }
+
+        if (_coordinator.IsBusy)
+        {
+            RequiredUpdateBody.Text = "Wait for the current setup switch to finish, then install the required update.";
+            return;
+        }
+
+        RequiredUpdateButton.IsEnabled = false;
+        RequiredUpdateProgress.Visibility = Wpf.Visibility.Visible;
+        RequiredUpdateProgress.Value = 0;
+        RequiredUpdateBody.Text = "Downloading the required update...";
+        string? error = await _updates.DownloadAsync(
+            _requiredUpdate.Update,
+            percent => RunOnUi(() => RequiredUpdateProgress.Value = percent));
+        if (error is not null)
+        {
+            RequiredUpdateBody.Text = "Download failed: " + error;
+            RequiredUpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+            RequiredUpdateButton.IsEnabled = true;
+            return;
+        }
+
+        RequiredUpdateBody.Text = "Restarting to finish the update...";
+        string? applyError = _updates.ApplyAndRestart(_requiredUpdate.Update);
+        RequiredUpdateBody.Text = "Could not apply the update: " + applyError;
+        RequiredUpdateProgress.Visibility = Wpf.Visibility.Collapsed;
+        RequiredUpdateButton.IsEnabled = true;
     }
 
     private async void InstallUpdate_Click(object sender, Wpf.RoutedEventArgs e)
@@ -3187,12 +4202,12 @@ public partial class PitLaunchView : Controls.UserControl
 
     private void SaveSettings_Click(object sender, Wpf.RoutedEventArgs e)
     {
-        ApplySettingsControls();
+        ApplyGeneralSettingsControls();
         try
         {
             _coordinator.SaveSettings();
             RefreshReliableStartupStatus();
-            ShowToast("Settings saved", "Startup and detection preferences updated.", "AccentBrush");
+            ShowToast("Settings saved", "Startup and safety preferences updated.", "AccentBrush");
         }
         catch (Exception ex)
         {
@@ -3201,14 +4216,94 @@ public partial class PitLaunchView : Controls.UserControl
         }
     }
 
-    private void ApplySettingsControls()
+    private void SaveGameDetection_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        ApplyGameSettingsControls();
+        try
+        {
+            _coordinator.SaveSettings();
+            ShowToast("Game detection saved", DetectionToggle.IsChecked == true
+                ? $"Checking every {_pollSeconds} seconds."
+                : "Automatic game switching is off.", "AccentBrush");
+        }
+        catch (Exception ex)
+        {
+            RefreshSettings();
+            ShowError(ex.Message);
+        }
+    }
+
+    private void SaveToggleHotkey_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        string toggleHotkey = ToggleHotkeyInput.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(toggleHotkey) &&
+            !HotkeyParser.TryParse(toggleHotkey, out _, out string hotkeyError))
+        {
+            ShowError(hotkeyError);
+            ToggleHotkeyInput.Focus();
+            return;
+        }
+
+        string previous = _coordinator.Document.Settings.ToggleHotkey;
+        try
+        {
+            _coordinator.Document.Settings.ToggleHotkey = toggleHotkey;
+            _coordinator.SaveSettings();
+            ShowToast("Shortcut saved", string.IsNullOrWhiteSpace(toggleHotkey)
+                ? "Desk ↔ Rig keyboard shortcut cleared."
+                : toggleHotkey, "AccentBrush");
+        }
+        catch (Exception ex)
+        {
+            _coordinator.Document.Settings.ToggleHotkey = previous;
+            _toggleHotkeyCommitted = previous;
+            ToggleHotkeyInput.Text = previous;
+            ShowError(ex.Message);
+        }
+    }
+
+    private async void InstallStreamDeckPlugin_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        InstallStreamDeckPluginButton.IsEnabled = false;
+        InstallStreamDeckPluginButton.Content = "Preparing...";
+        try
+        {
+            bool downloaded = await StreamDeckPluginInstaller.OpenInstallerAsync();
+            ShowToast(
+                "Stream Deck installer opened",
+                downloaded
+                    ? "Approve the PitLaunch plugin in Stream Deck to finish."
+                    : "Approve the local PitLaunch plugin package in Stream Deck to finish.",
+                "AccentBrush");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Could not open the Stream Deck plugin installer: " + ex.Message);
+            ShowError(
+                "PitLaunch could not open the Stream Deck plugin. Install the Elgato Stream Deck software first, " +
+                "then try again. If it is already installed, the plugin may not be attached to the latest PitLaunch release yet.");
+        }
+        finally
+        {
+            InstallStreamDeckPluginButton.Content = "Install plugin";
+            InstallStreamDeckPluginButton.IsEnabled = true;
+        }
+    }
+
+    private void ApplyGeneralSettingsControls()
     {
         AppSettings settings = _coordinator.Document.Settings;
         settings.LaunchOnStartup = StartupToggle.IsChecked == true;
         settings.StartMinimized = ChooserToggle.IsChecked != true;
         settings.ConfirmBeforeSwitch = ConfirmSwitchToggle.IsChecked == true;
+    }
+
+    private void ApplyGameSettingsControls()
+    {
+        AppSettings settings = _coordinator.Document.Settings;
         settings.GameDetectionEnabled = DetectionToggle.IsChecked == true;
         settings.GamePollSeconds = _pollSeconds;
+        settings.GameExitGraceSeconds = _gameExitGraceSeconds;
     }
 
     private async void ReliableStartup_Click(object sender, Wpf.RoutedEventArgs e)
@@ -3232,7 +4327,7 @@ public partial class PitLaunchView : Controls.UserControl
             if (!remove)
             {
                 StartupToggle.IsChecked = true;
-                ApplySettingsControls();
+                ApplyGeneralSettingsControls();
                 _coordinator.SaveSettings();
             }
 
@@ -3304,6 +4399,34 @@ public partial class PitLaunchView : Controls.UserControl
     private void OpenData_Click(object sender, Wpf.RoutedEventArgs e) => OpenPath(AppPaths.DataDirectory);
     private void OpenLog_Click(object sender, Wpf.RoutedEventArgs e) => OpenPath(AppPaths.LogFile);
 
+    private void ExportSupportBundle_Click(object sender, Wpf.RoutedEventArgs e)
+    {
+        using Forms.SaveFileDialog dialog = new()
+        {
+            Title = "Export PitLaunch support bundle",
+            Filter = "ZIP archive (*.zip)|*.zip",
+            AddExtension = true,
+            DefaultExt = "zip",
+            FileName = $"PitLaunch-support-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(_owner) != Forms.DialogResult.OK) return;
+        try
+        {
+            string destination = dialog.FileName;
+            if (File.Exists(destination))
+            {
+                string directory = Path.GetDirectoryName(destination) ?? AppPaths.DataDirectory;
+                string stem = Path.GetFileNameWithoutExtension(destination);
+                destination = Path.Combine(directory, $"{stem}-{DateTime.Now:HHmmss}.zip");
+            }
+            SupportBundleResult result = new SupportBundleService().Export(destination, _coordinator.Document);
+            ShowToast("Support bundle exported", $"Saved {result.Entries.Count} sanitized diagnostic files.", "AccentBrush");
+            OpenPath(Path.GetDirectoryName(result.FilePath) ?? AppPaths.DataDirectory);
+        }
+        catch (Exception ex) { ShowError("Could not export support bundle: " + ex.Message); }
+    }
+
     private void OpenPath(string path)
     {
         try
@@ -3333,9 +4456,21 @@ public partial class PitLaunchView : Controls.UserControl
     private void Root_PreviewKeyDown(object sender, Input.KeyEventArgs e)
     {
         if (e.Key != Input.Key.Escape) return;
+        if (RequiredUpdateLayer.Visibility == Wpf.Visibility.Visible)
+        {
+            e.Handled = true;
+            return;
+        }
+        if (OnboardingLayer.Visibility == Wpf.Visibility.Visible)
+        {
+            e.Handled = true;
+            return;
+        }
         // Escape backs out one layer at a time. Without this the arrangement overlay would fall
         // through to the guide underneath and throw away a setup mid-creation.
         if (_arrangeOverlay is not null) CloseArrangementOverlay();
+        else if (_dialogMode == DialogMode.SetupGuide && _setupGuideStep > 0)
+            ShowSetupGuideStep(_setupGuideStep - 1, animate: true);
         else if (_dialogMode != DialogMode.None) CompleteDialog(false);
         else if (_page != AppPage.Home) Navigate(AppPage.Home);
         else _owner.HideToTray();
@@ -3448,13 +4583,37 @@ public partial class PitLaunchView : Controls.UserControl
         Controls.CheckBox Start,
         Controls.CheckBox Close,
         Controls.CheckBox Force,
-        Controls.CheckBox Hidden);
+        Controls.CheckBox Hidden,
+        Controls.TextBox Order,
+        Controls.TextBox Delay,
+        Controls.CheckBox WaitForReady,
+        Controls.TextBox ReadyTimeout,
+        Controls.ComboBox AudioDevice,
+        Controls.TextBox Volume);
 
-    private sealed record GameEditorState(Controls.ComboBox Process);
+    private sealed record GameEditorState(
+        Guid Id,
+        Controls.ComboBox Process,
+        Controls.ComboBox GameOutput,
+        Controls.TextBox GameVolume,
+        Controls.TextBox ExtraApps,
+        Controls.CheckBox CloseApps,
+        Controls.CheckBox CustomizeDiscord,
+        Controls.CheckBox DiscordLaunch,
+        Controls.CheckBox DiscordMuteSession,
+        Controls.CheckBox DiscordDeafenSession,
+        Controls.ComboBox DiscordOutput,
+        Controls.ComboBox DiscordMicrophone,
+        Controls.TextBox DiscordVolume);
 
     private sealed record AudioPickerOption(string? Id, string Name, string Display)
     {
         public override string ToString() => Display;
+    }
+
+    private sealed record ProfilePickerOption(Guid Id, string Name)
+    {
+        public override string ToString() => Name;
     }
 
     private sealed record SetupKindOption(SetupKind Value, string Label)
@@ -3463,6 +4622,16 @@ public partial class PitLaunchView : Controls.UserControl
     }
 
     private sealed record RigDisplayOption(RigDisplayVariant Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record PowerPlanPickerOption(string Guid, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record HdrPickerOption(bool? Value, string Label)
     {
         public override string ToString() => Label;
     }

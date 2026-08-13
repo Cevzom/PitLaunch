@@ -7,13 +7,18 @@
 !build.ps1
 !build-installer.ps1
 !README.md
-!RELEASING.md
+!CONTRIBUTING.md
 !START-HERE.txt
 !PRODUCT.md
-!DESIGN.md
 
 !docs/
 !docs/**
+
+!.github/
+!.github/ISSUE_TEMPLATE/
+!.github/ISSUE_TEMPLATE/**
+!.github/workflows/
+!.github/workflows/ci.yml
 
 !tools/
 !tools/**
@@ -30,3 +35,20 @@ assets/*
 # a system font on any other machine. "assets/*" above hides them without this exception.
 !assets/fonts/
 !assets/fonts/**
+
+# The product website, deployed to Railway.
+!web/
+!web/**
+web/node_modules/
+
+# Stream Deck integration. The "*" above hides new folders silently, so the plugin has to be
+# whitelisted or it would never be committed at all.
+!integrations/
+!integrations/**
+# ...but not its dependencies, build output, or packaged artefact.
+integrations/stream-deck/node_modules/
+integrations/stream-deck/com.cevzom.pitlaunch.sdPlugin/bin/
+integrations/stream-deck/com.cevzom.pitlaunch.sdPlugin/logs/
+integrations/stream-deck/tests/dist/
+integrations/stream-deck/dist/
+*.streamDeckPlugin

@@ -6,13 +6,16 @@ internal sealed class HotkeyService : NativeWindow, IDisposable
 {
     private const int WmHotkey = 0x0312;
     private const int EmergencyDisplayHotkeyId = 900;
+    private const int ToggleProfileHotkeyId = 901;
     private const uint ModNoRepeat = 0x4000;
     private readonly Dictionary<int, Guid> _registrations = [];
     private int _nextId = 1000;
 
     public event Action<Guid>? Pressed;
     public event Action? EmergencyDisplayRestorePressed;
+    public event Action? ToggleProfilePressed;
     public bool EmergencyDisplayHotkeyRegistered { get; private set; }
+    public bool ToggleProfileHotkeyRegistered { get; private set; }
 
     public HotkeyService()
     {
@@ -23,7 +26,7 @@ internal sealed class HotkeyService : NativeWindow, IDisposable
         });
     }
 
-    public List<string> RegisterProfiles(IEnumerable<Profile> profiles)
+    public List<string> RegisterProfiles(IEnumerable<Profile> profiles, string? toggleHotkey = null)
     {
         Clear();
         List<string> warnings = [];
@@ -36,6 +39,24 @@ internal sealed class HotkeyService : NativeWindow, IDisposable
         if (!EmergencyDisplayHotkeyRegistered)
         {
             warnings.Add($"Emergency display shortcut {AppInfo.EmergencyDisplayHotkey} is already in use.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(toggleHotkey))
+        {
+            if (!HotkeyParser.TryParse(toggleHotkey, out HotkeyGesture toggle, out string error))
+            {
+                warnings.Add("Desk / Rig toggle: " + error);
+            }
+            else
+            {
+                ToggleProfileHotkeyRegistered = RegisterHotKey(
+                    Handle,
+                    ToggleProfileHotkeyId,
+                    (uint)toggle.Modifiers | ModNoRepeat,
+                    (uint)toggle.KeyCode);
+                if (!ToggleProfileHotkeyRegistered)
+                    warnings.Add($"Desk / Rig toggle: {toggleHotkey} is already in use.");
+            }
         }
 
         foreach (Profile profile in profiles)
@@ -67,6 +88,11 @@ internal sealed class HotkeyService : NativeWindow, IDisposable
             UnregisterHotKey(Handle, EmergencyDisplayHotkeyId);
             EmergencyDisplayHotkeyRegistered = false;
         }
+        if (ToggleProfileHotkeyRegistered)
+        {
+            UnregisterHotKey(Handle, ToggleProfileHotkeyId);
+            ToggleProfileHotkeyRegistered = false;
+        }
         foreach (int id in _registrations.Keys) UnregisterHotKey(Handle, id);
         _registrations.Clear();
         _nextId = 1000;
@@ -77,6 +103,10 @@ internal sealed class HotkeyService : NativeWindow, IDisposable
         if (message.Msg == WmHotkey && message.WParam.ToInt32() == EmergencyDisplayHotkeyId)
         {
             EmergencyDisplayRestorePressed?.Invoke();
+        }
+        else if (message.Msg == WmHotkey && message.WParam.ToInt32() == ToggleProfileHotkeyId)
+        {
+            ToggleProfilePressed?.Invoke();
         }
         else if (message.Msg == WmHotkey && _registrations.TryGetValue(message.WParam.ToInt32(), out Guid profileId))
         {
@@ -179,4 +209,41 @@ internal static class HotkeyParser
         gesture = new HotkeyGesture(modifiers, key);
         return true;
     }
+}
+
+internal static class HotkeySender
+{
+    private const uint KeyUp = 0x0002;
+
+    public static void Press(string value, string action, OperationReport report)
+    {
+        if (!HotkeyParser.TryParse(value, out HotkeyGesture gesture, out string error))
+        {
+            report.Warn("Discord", $"Could not send the {action} keybind: {error}");
+            return;
+        }
+
+        List<Keys> modifiers = [];
+        if (gesture.Modifiers.HasFlag(HotkeyModifiers.Control)) modifiers.Add(Keys.ControlKey);
+        if (gesture.Modifiers.HasFlag(HotkeyModifiers.Alt)) modifiers.Add(Keys.Menu);
+        if (gesture.Modifiers.HasFlag(HotkeyModifiers.Shift)) modifiers.Add(Keys.ShiftKey);
+        if (gesture.Modifiers.HasFlag(HotkeyModifiers.Win)) modifiers.Add(Keys.LWin);
+        try
+        {
+            foreach (Keys modifier in modifiers) KeyEvent((byte)modifier, 0, 0, UIntPtr.Zero);
+            KeyEvent((byte)gesture.KeyCode, 0, 0, UIntPtr.Zero);
+            Thread.Sleep(25);
+            KeyEvent((byte)gesture.KeyCode, 0, KeyUp, UIntPtr.Zero);
+            for (int index = modifiers.Count - 1; index >= 0; index--)
+                KeyEvent((byte)modifiers[index], 0, KeyUp, UIntPtr.Zero);
+            report.Info("Discord", $"Sent the {action} keybind.");
+        }
+        catch (Exception ex)
+        {
+            report.Warn("Discord", $"Could not send the {action} keybind: {ex.Message}");
+        }
+    }
+
+    [DllImport("user32.dll", EntryPoint = "keybd_event")]
+    private static extern void KeyEvent(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
 }

@@ -1,0 +1,31 @@
+# Railway terminates TLS at the edge and passes the port in $PORT, so this listens on plain
+# HTTP. `auto_https off` stops Caddy trying to get its own certificate inside the container.
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode zstd gzip
+
+	# Fingerprint-free filenames, so the HTML must always be revalidated while the
+	# assets beside it can be cached hard.
+	@static path *.css *.js *.png *.ico *.svg *.woff2
+	header @static Cache-Control "public, max-age=604800, must-revalidate"
+	header /index.html Cache-Control "public, max-age=0, must-revalidate"
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.github.com; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+		-Server
+	}
+
+	file_server
+}

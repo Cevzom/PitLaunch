@@ -1,0 +1,33 @@
+{
+  "name": "pitlaunch-stream-deck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stream Deck plugin for PitLaunch. Switches desk and sim-racing setups from a physical button.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.cevzom.pitlaunch\"",
+    "pretest": "rollup -c",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "pretest:e2e": "rollup -c",
+    "test:e2e": "node tests/real-app.e2e.mjs",
+    "pack": "streamdeck pack com.cevzom.pitlaunch.sdPlugin --output dist --force",
+    "validate": "streamdeck validate com.cevzom.pitlaunch.sdPlugin",
+    "link": "streamdeck link com.cevzom.pitlaunch.sdPlugin"
+  },
+  "dependencies": {
+    "@elgato/streamdeck": "^2.1.1",
+    "@elgato/utils": "^0.5.0"
+  },
+  "devDependencies": {
+    "@elgato/cli": "^1.8.0",
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/node": "^22.9.0",
+    "rollup": "^4.27.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.6.3"
+  }
+}

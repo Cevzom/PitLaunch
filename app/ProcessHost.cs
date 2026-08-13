@@ -13,6 +13,8 @@ internal enum LaunchRequestKind
     ActivateProfile,
     CaptureProfile,
     RestoreDisplays,
+    ToggleProfile,
+    UndoSwitch,
     ScheduledStartup,
     InstallStartupTask,
     RemoveStartupTask,
@@ -55,6 +57,12 @@ internal sealed class LaunchRequest
                     break;
                 case "--restore-displays":
                     request.Kind = LaunchRequestKind.RestoreDisplays;
+                    break;
+                case "--toggle":
+                    request.Kind = LaunchRequestKind.ToggleProfile;
+                    break;
+                case "--undo":
+                    request.Kind = LaunchRequestKind.UndoSwitch;
                     break;
                 case "--scheduled-startup":
                     request.Kind = LaunchRequestKind.ScheduledStartup;
@@ -224,21 +232,107 @@ internal static class SelfTest
         Check("profile serialization", () =>
         {
             ProfileDocument document = new();
+            document.Runtime.LastSwitchCheckpoint = new SwitchCheckpoint
+            {
+                ActiveProfileId = Guid.Parse("bc8b7d34-fc74-4e8f-a982-672d74a8dc04"),
+                KeepAwake = true,
+                PowerPlanGuid = "381b4222-f694-41f0-9685-ff5bb260df2e",
+                EnableHdr = false
+            };
+            Guid gamePresetId = Guid.Parse("a2fc19cb-6c8b-4ab5-a0ab-579850148156");
+            document.Runtime.ActiveGamePresetId = gamePresetId;
             document.Profiles.Add(new Profile
             {
                 Name = "Self test",
                 Kind = SetupKind.SimRacing,
-                RigDisplay = RigDisplayVariant.TripleScreen
+                RigDisplay = RigDisplayVariant.TripleScreen,
+                PowerPlanGuid = "381b4222-f694-41f0-9685-ff5bb260df2e",
+                EnableHdr = true,
+                Discord = new DiscordSettings
+                {
+                    LaunchOnActivate = true,
+                    OutputDeviceId = "discord-output",
+                    MicrophoneDeviceId = "discord-microphone",
+                    VolumePercent = 64,
+                    MuteToggleHotkey = "Ctrl+Shift+M",
+                    DeafenToggleHotkey = "Ctrl+Shift+D"
+                },
+                Apps =
+                [
+                    new AppRule
+                    {
+                        ExecutablePath = @"C:\SelfTest.exe",
+                        LaunchOrder = 4,
+                        DelayAfterStartSeconds = 3,
+                        WaitForReady = true,
+                        ReadyTimeoutSeconds = 12,
+                        AudioDeviceId = "self-test-audio",
+                        VolumePercent = 72
+                    }
+                ],
+                GameProcesses = ["self-test-game"],
+                GamePresets =
+                [
+                    new GamePreset
+                    {
+                        Id = gamePresetId,
+                        ProcessName = "self-test-game",
+                        AudioDeviceId = "game-output",
+                        VolumePercent = 91,
+                        Apps = [new AppRule { ExecutablePath = @"C:\PresetTool.exe", CloseOnDeactivate = true }],
+                        CustomizeDiscord = true,
+                        ToggleDiscordMuteForSession = true,
+                        ToggleDiscordDeafenForSession = true,
+                        Discord = new DiscordSettings
+                        {
+                            OutputDeviceId = "race-discord-output",
+                            MicrophoneDeviceId = "race-discord-microphone",
+                            VolumePercent = 48
+                        }
+                    }
+                ]
             });
             string json = JsonSerializer.Serialize(document);
             ProfileDocument? restored = JsonSerializer.Deserialize<ProfileDocument>(json);
             Profile? profile = restored?.Profiles.Single();
+            SwitchCheckpoint? restoredCheckpoint = restored?.Runtime.LastSwitchCheckpoint;
             if (profile?.Name != "Self test" ||
                 profile.Kind != SetupKind.SimRacing ||
-                profile.RigDisplay != RigDisplayVariant.TripleScreen)
+                profile.RigDisplay != RigDisplayVariant.TripleScreen ||
+                profile.PowerPlanGuid != "381b4222-f694-41f0-9685-ff5bb260df2e" ||
+                profile.EnableHdr != true ||
+                profile.Apps.Single().LaunchOrder != 4 ||
+                profile.Apps.Single().DelayAfterStartSeconds != 3 ||
+                !profile.Apps.Single().WaitForReady ||
+                profile.Apps.Single().ReadyTimeoutSeconds != 12 ||
+                profile.Apps.Single().AudioDeviceId != "self-test-audio" ||
+                profile.Apps.Single().VolumePercent != 72 ||
+                !profile.Discord.LaunchOnActivate ||
+                profile.Discord.OutputDeviceId != "discord-output" ||
+                profile.Discord.MicrophoneDeviceId != "discord-microphone" ||
+                profile.Discord.VolumePercent != 64 ||
+                profile.Discord.MuteToggleHotkey != "Ctrl+Shift+M" ||
+                profile.Discord.DeafenToggleHotkey != "Ctrl+Shift+D" ||
+                profile.GamePresets.Single().Id != gamePresetId ||
+                profile.GamePresets.Single().ProcessName != "self-test-game" ||
+                profile.GamePresets.Single().AudioDeviceId != "game-output" ||
+                profile.GamePresets.Single().VolumePercent != 91 ||
+                !profile.GamePresets.Single().Apps.Single().CloseOnDeactivate ||
+                !profile.GamePresets.Single().CustomizeDiscord ||
+                !profile.GamePresets.Single().ToggleDiscordMuteForSession ||
+                !profile.GamePresets.Single().ToggleDiscordDeafenForSession ||
+                profile.GamePresets.Single().Discord.OutputDeviceId != "race-discord-output" ||
+                profile.GamePresets.Single().Discord.MicrophoneDeviceId != "race-discord-microphone" ||
+                profile.GamePresets.Single().Discord.VolumePercent != 48 ||
+                restored?.Runtime.ActiveGamePresetId != gamePresetId ||
+                restoredCheckpoint?.ActiveProfileId != Guid.Parse("bc8b7d34-fc74-4e8f-a982-672d74a8dc04") ||
+                restoredCheckpoint.KeepAwake != true ||
+                restoredCheckpoint.EnableHdr != false)
                 throw new InvalidOperationException("Profile round trip changed data.");
             if (JsonSerializer.Deserialize<AppSettings>("{}")?.ConfirmBeforeSwitch != true)
-                throw new InvalidOperationException("Beta switch confirmation does not default to enabled.");
+                throw new InvalidOperationException("Switch confirmation does not default to enabled.");
+            if (JsonSerializer.Deserialize<AppSettings>("{}")?.GameExitGraceSeconds != 10)
+                throw new InvalidOperationException("Game-exit grace did not retain its safe default.");
         });
 
         Check("startup launch requests", () =>
@@ -246,6 +340,8 @@ internal static class SelfTest
             if (LaunchRequest.Parse(["--chooser"]).Kind != LaunchRequestKind.Chooser ||
                 LaunchRequest.Parse(["--background"]).Kind != LaunchRequestKind.Background ||
                 LaunchRequest.Parse(["--restore-displays"]).Kind != LaunchRequestKind.RestoreDisplays ||
+                LaunchRequest.Parse(["--toggle"]).Kind != LaunchRequestKind.ToggleProfile ||
+                LaunchRequest.Parse(["--undo"]).Kind != LaunchRequestKind.UndoSwitch ||
                 LaunchRequest.Parse([StartupTaskRegistration.ScheduledArgument]).Kind != LaunchRequestKind.ScheduledStartup ||
                 LaunchRequest.Parse(["--install-startup-task", "S-1-5-21-1"]).Value != "S-1-5-21-1")
             {
@@ -286,14 +382,73 @@ internal static class SelfTest
                 document.Settings.ConfirmBeforeSwitch = false;
                 document.Settings.GameDetectionEnabled = true;
                 document.Settings.GamePollSeconds = 7;
+                document.Settings.GameExitGraceSeconds = 19;
+                document.Settings.ToggleHotkey = "Ctrl+Alt+T";
+                document.Settings.OnboardingCompleted = true;
                 repository.Save(document);
 
                 AppSettings restored = new ProfileRepository(file).Load().Settings;
                 if (!restored.LaunchOnStartup || !restored.StartMinimized || restored.ConfirmBeforeSwitch ||
-                    !restored.GameDetectionEnabled || restored.GamePollSeconds != 7)
+                    !restored.GameDetectionEnabled || restored.GamePollSeconds != 7 ||
+                    restored.GameExitGraceSeconds != 19 || restored.ToggleHotkey != "Ctrl+Alt+T" ||
+                    !restored.OnboardingCompleted)
                 {
                     throw new InvalidOperationException("Saved settings changed after a repository restart.");
                 }
+
+                document.Settings.OnboardingCompleted = false;
+                document.Profiles.Add(new Profile { Name = "Existing setup" });
+                repository.Save(document);
+                if (!new ProfileRepository(file).Load().Settings.OnboardingCompleted)
+                    throw new InvalidOperationException("An existing user's setup was treated as a new first run.");
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch { }
+            }
+        });
+
+        Check("game preset compatibility", () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-preset-test-" + Guid.NewGuid().ToString("N"));
+            string file = Path.Combine(directory, "profiles.json");
+            try
+            {
+                ProfileDocument document = new();
+                document.Profiles.Add(new Profile
+                {
+                    Name = "Legacy rig",
+                    GameProcesses = ["Game.exe", "game"],
+                    GamePresets =
+                    [
+                        new GamePreset
+                        {
+                            ProcessName = "Game.exe",
+                            VolumePercent = 140,
+                            Discord = new DiscordSettings { VolumePercent = -10 }
+                        }
+                    ]
+                });
+                new ProfileRepository(file).Save(document);
+                Profile restored = new ProfileRepository(file).Load().Profiles.Single();
+                if (restored.GameProcesses.Count != 1 || restored.GameProcesses[0] != "Game" ||
+                    restored.GamePresets.Count != 1 || restored.GamePresets[0].ProcessName != "Game" ||
+                    restored.GamePresets[0].VolumePercent != 100 ||
+                    restored.GamePresets[0].Discord.VolumePercent != 0)
+                {
+                    throw new InvalidOperationException("Legacy game triggers did not normalize into one safe preset.");
+                }
+
+                Profile legacyOnly = new()
+                {
+                    Name = "Old profile",
+                    GameProcesses = ["legacy-sim.exe"]
+                };
+                document.Profiles = [legacyOnly];
+                new ProfileRepository(file).Save(document);
+                Profile migrated = new ProfileRepository(file).Load().Profiles.Single();
+                if (migrated.GamePresets.Single().ProcessName != "legacy-sim")
+                    throw new InvalidOperationException("An old game trigger was not upgraded to an editable preset.");
             }
             finally
             {
@@ -340,31 +495,44 @@ internal static class SelfTest
             }
         });
 
-        Check("switch confirmation policy", () =>
+        Check("manual switch confirmation regression", () =>
         {
-            // Manual switches must ask. The tray counts as manual: ActivateProfileAsync shows the
-            // window before prompting, so the dialog is always reachable.
+            // Both manual entry paths flow through PitLaunchView.ActivateProfileAsync. The tray
+            // counts as manual because the window is raised before the prompt is shown.
             foreach (ActivationSource manual in new[] { ActivationSource.User, ActivationSource.Tray })
             {
                 if (!PitLaunchView.ShouldConfirmSwitch(true, false, manual))
                     throw new InvalidOperationException($"A {manual} switch would skip the confirmation dialog.");
             }
 
-            // Everything else must apply silently. A prompt raised over a fullscreen game is
-            // unreachable, and the switch would then never happen at all.
+            if (PitLaunchView.ShouldConfirmSwitch(false, false, ActivationSource.User) ||
+                PitLaunchView.ShouldConfirmSwitch(true, true, ActivationSource.User))
+            {
+                throw new InvalidOperationException("The setting or an explicit bypass no longer suppresses a manual prompt.");
+            }
+        });
+
+        Check("automatic switch no-confirm regression", () =>
+        {
+            // These paths deliberately bypass the window confirmation flow. A prompt raised over
+            // a fullscreen game is unreachable, and would make an automatic switch appear broken.
             foreach (ActivationSource automatic in new[]
                      {
                          ActivationSource.GameDetected,
                          ActivationSource.GameExited,
                          ActivationSource.Hotkey,
-                         ActivationSource.CommandLine
+                         ActivationSource.CommandLine,
+                         ActivationSource.Integration
                      })
             {
                 if (PitLaunchView.ShouldConfirmSwitch(true, false, automatic))
                     throw new InvalidOperationException($"A {automatic} switch would raise a confirmation dialog.");
             }
 
-            // The setting off, or a caller that already asked, silences every source.
+            if (PitLaunchView.RequiresConfirmation(ActivationSource.GameDetected) ||
+                PitLaunchView.RequiresConfirmation(ActivationSource.Integration))
+                throw new InvalidOperationException("An automatic source was reclassified as manual.");
+
             foreach (ActivationSource source in Enum.GetValues<ActivationSource>())
             {
                 if (PitLaunchView.ShouldConfirmSwitch(false, false, source))
@@ -676,6 +844,93 @@ internal static class SelfTest
                 throw new InvalidOperationException("An unavailable audio device was not skipped cleanly.");
         });
 
+        Check("mandatory update switch gate", () =>
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "PitLaunch-switch-gate-" + Guid.NewGuid().ToString("N"));
+            string file = Path.Combine(folder, "profiles.json");
+            try
+            {
+                Profile profile = new() { Name = "Blocked setup" };
+                ProfileRepository repository = new(file);
+                repository.Save(new ProfileDocument { Profiles = [profile] });
+                using ProfileCoordinator coordinator = new(
+                    repository,
+                    new DisplayService(),
+                    new AudioService(),
+                    new WindowService(),
+                    new AppService());
+                coordinator.SetSwitchBlockReason("A required update is waiting.");
+                ProfileSwitchCompleted? completed = coordinator
+                    .ActivateAsync(profile.Id, ActivationSource.Integration)
+                    .GetAwaiter().GetResult();
+                if (completed is null || !completed.Report.HasErrors ||
+                    !completed.Report.Messages.Any(message =>
+                        message.Area == "Update" && message.Message.Contains("required update", StringComparison.OrdinalIgnoreCase)) ||
+                    coordinator.Document.Runtime.ActiveProfileId.HasValue)
+                {
+                    throw new InvalidOperationException("A required update did not block an external setup switch.");
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(folder, true); } catch { }
+            }
+        });
+
+        Check("per-app audio fallback", () =>
+        {
+            const string endpoint = "{0.0.0.00000000}.{01234567-89AB-4CDE-8123-456789ABCDEF}";
+            if (!AppAudioService.TryBuildRenderInterfaceId(endpoint, out string interfaceId) ||
+                interfaceId != @"\\?\SWD#MMDEVAPI#{0.0.0.00000000}.{01234567-89AB-4CDE-8123-456789ABCDEF}#{e6327cad-dcec-4949-ae8a-991e976a79d2}" ||
+                AppAudioService.TryBuildRenderInterfaceId("not-an-endpoint", out _))
+            {
+                throw new InvalidOperationException("Per-app audio endpoint mapping accepted an invalid id or changed a valid one.");
+            }
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17134) &&
+                !AppAudioService.IsRoutingInterfaceAvailable(out string routingError))
+            {
+                throw new InvalidOperationException("The Windows per-app audio routing interface is unavailable: " + routingError);
+            }
+
+            OperationReport report = new("Self test app audio");
+            new AppAudioService().Apply(new AppRule
+            {
+                ExecutablePath = @"C:\PitLaunch-self-test-missing.exe",
+                AudioDeviceId = "{0.0.0.00000000}.{PITLAUNCH-MISSING-APP-AUDIO}",
+                VolumePercent = 47
+            }, [int.MaxValue], report);
+            if (report.HasErrors || !report.HasWarnings)
+                throw new InvalidOperationException("An unavailable app audio session did not fall back cleanly.");
+        });
+
+        Check("setup readiness", () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-readiness-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using ProfileCoordinator coordinator = new(
+                    new ProfileRepository(Path.Combine(directory, "profiles.json")),
+                    new DisplayService(),
+                    new AudioService(),
+                    new WindowService(),
+                    new AppService());
+                Profile current = new()
+                {
+                    Name = "Current hardware",
+                    Display = new DisplayService().Capture(),
+                    Audio = new AudioService().Capture()
+                };
+                coordinator.Document.Profiles.Add(current);
+                ReadinessReport readiness = coordinator.CheckReadiness(current);
+                if (!readiness.CanSwitch)
+                {
+                    throw new InvalidOperationException("The current working hardware was reported as unable to switch: " +
+                        string.Join("; ", readiness.Items.Select(item => item.Message)));
+                }
+            }
+            finally { try { Directory.Delete(directory, true); } catch { } }
+        });
+
         Check("window capture", () => _ = new WindowService().Capture());
 
         Check("keep-awake request", () =>
@@ -685,6 +940,95 @@ internal static class SelfTest
             if (!power.IsHolding) throw new InvalidOperationException("Windows refused the keep-awake request.");
             power.SetKeepAwake(false);
             if (power.IsHolding) throw new InvalidOperationException("The keep-awake request was not released.");
+        });
+
+        Check("game library source parsers", () =>
+        {
+            (string Name, string Publisher, string Location, string Expected)[] registrations =
+            [
+                ("EA SPORTS F1 25", "Electronic Arts", @"C:\Games\EA Games\F1 25", "EA app"),
+                ("EA SPORTS WRC", "EA", @"D:\Games\WRC", "EA app"),
+                ("Assassin's Creed", "Ubisoft Entertainment", @"C:\Games\Assassin", "Ubisoft Connect"),
+                ("Diablo IV", "Blizzard Entertainment", @"D:\Battle.net\Diablo IV", "Battle.net"),
+                ("iRacing.com Motorsport Simulations", "iRacing.com", @"C:\Games\iRacing", "iRacing"),
+                ("Unrelated Game", "Independent Studio", @"C:\Games\Unrelated", string.Empty)
+            ];
+            foreach ((string name, string publisher, string location, string expected) in registrations)
+            {
+                string actual = GameLibraryService.LauncherSource(name, publisher, location);
+                if (actual != expected)
+                    throw new InvalidOperationException($"{name} was classified as '{actual}' instead of '{expected}'.");
+            }
+
+            foreach (string client in new[] { "EA app", "EA Desktop", "Ubisoft Connect", "Battle.net", "iRacing Service" })
+            {
+                if (!GameLibraryService.IsNotAGame(client))
+                    throw new InvalidOperationException($"The launcher client {client} would be listed as a game.");
+            }
+
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-game-parser-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(directory);
+                string executable = Path.Combine(directory, "Game, Release.exe");
+                File.WriteAllBytes(executable, [0x4d, 0x5a]);
+                foreach (string icon in new[] { $"\"{executable}\",0", executable + ",-1", $"  \"{executable}\"  " })
+                {
+                    string? parsed = GameLibraryService.ExistingExecutable(icon);
+                    if (!string.Equals(parsed, executable, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException($"DisplayIcon was parsed as '{parsed}' instead of '{executable}'.");
+                }
+
+                string installer = Path.Combine(directory, "setup.exe");
+                File.WriteAllBytes(installer, [0x4d, 0x5a]);
+                if (GameLibraryService.ExistingExecutable($"\"{installer}\",0") is not null)
+                    throw new InvalidOperationException("An installer DisplayIcon was accepted as a game executable.");
+                if (!GameLibraryService.IsSafeExecutableSearchRoot(directory) ||
+                    GameLibraryService.IsSafeExecutableSearchRoot(Path.GetPathRoot(directory)))
+                {
+                    throw new InvalidOperationException("Executable search-root safety rejected a game folder or accepted a drive root.");
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch { }
+            }
+        });
+
+        Check("bounded Xbox game discovery", () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-xbox-test-" + Guid.NewGuid().ToString("N"));
+            string library = Path.Combine(directory, "XboxGames");
+            try
+            {
+                string forzaContent = Path.Combine(library, "Forza Horizon 5", "Content");
+                string iracingContent = Path.Combine(library, "iRacing", "Content");
+                Directory.CreateDirectory(forzaContent);
+                Directory.CreateDirectory(iracingContent);
+                string forza = Path.Combine(forzaContent, "ForzaHorizon5.exe");
+                string iracing = Path.Combine(iracingContent, "iRacingSim64DX11.exe");
+                File.WriteAllBytes(forza, [0x4d, 0x5a]);
+                File.WriteAllBytes(iracing, [0x4d, 0x5a]);
+                File.WriteAllBytes(Path.Combine(iracingContent, "iRacingUI.exe"), new byte[4096]);
+
+                string outside = Path.Combine(directory, "OutsideXboxGames.exe");
+                File.WriteAllBytes(outside, new byte[8192]);
+                List<GameEntry> games = GameLibraryService.ScanXboxLibraryRoot(library).ToList();
+                if (games.Count != 2 || games.Any(game => game.Source != "Xbox"))
+                    throw new InvalidOperationException("The XboxGames root did not produce exactly its two game folders.");
+                if (!games.Any(game => string.Equals(game.ExecutablePath, forza, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("The normal Xbox game executable was not found.");
+                if (!games.Any(game => string.Equals(game.ExecutablePath, iracing, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("The known iRacing simulation executable did not beat its larger UI launcher.");
+                if (games.Any(game => string.Equals(game.ExecutablePath, outside, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("Xbox discovery escaped the XboxGames library root.");
+                if (GameLibraryService.ScanXboxLibraryRoot(Path.GetPathRoot(directory)!).Any())
+                    throw new InvalidOperationException("Xbox discovery accepted a drive root as a game library.");
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch { }
+            }
         });
 
         Check("game library scan", () =>
@@ -727,6 +1071,265 @@ internal static class SelfTest
                 throw new InvalidOperationException("A connected controller was reported as missing.");
             if (controllers.FindMissing(["PitLaunch self-test absent device"]).Count != 1)
                 throw new InvalidOperationException("An absent controller was not reported as missing.");
+        });
+
+        Check("power plan discovery", () =>
+        {
+            using PowerService power = new();
+            List<PowerPlanOption> plans = power.ListPowerPlans();
+            string active = power.GetActivePowerPlanGuid();
+            if (plans.Count == 0 || string.IsNullOrWhiteSpace(active) ||
+                !plans.Any(plan => string.Equals(plan.Guid, active, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException("The active Windows power plan was not discovered.");
+            }
+        });
+
+        Check("HDR capability probe", () =>
+        {
+            HdrStatus status = new HdrService().GetStatus();
+            if (status.ActiveDisplayCount <= 0)
+                throw new InvalidOperationException("Windows reported no active displays to the HDR probe.");
+            if (status.SupportedDisplayCount < 0 || status.SupportedDisplayCount > status.ActiveDisplayCount)
+                throw new InvalidOperationException("The HDR capability counts were inconsistent.");
+        });
+
+        Check("ordered application startup", () =>
+        {
+            AppRule first = new() { ExecutablePath = "first.exe", LaunchOrder = -1 };
+            AppRule sameA = new() { ExecutablePath = "same-a.exe", LaunchOrder = 2 };
+            AppRule sameB = new() { ExecutablePath = "same-b.exe", LaunchOrder = 2 };
+            AppRule disabled = new() { ExecutablePath = "disabled.exe", LaunchOrder = -5, StartOnActivate = false };
+            IReadOnlyList<AppRule> ordered = AppService.OrderForLaunch([sameA, disabled, sameB, first]);
+            if (ordered.Count != 3 || ordered[0] != first || ordered[1] != sameA || ordered[2] != sameB)
+                throw new InvalidOperationException("Application rules were not ordered stably.");
+        });
+
+        Check("game exit grace", () =>
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (GameDetectionService.HasExitGraceElapsed(null, now, 10) ||
+                GameDetectionService.HasExitGraceElapsed(now.AddSeconds(-9), now, 10) ||
+                !GameDetectionService.HasExitGraceElapsed(now.AddSeconds(-10), now, 10) ||
+                !GameDetectionService.HasExitGraceElapsed(now, now, 0))
+            {
+                throw new InvalidOperationException("The game-exit grace boundary was calculated incorrectly.");
+            }
+        });
+
+        Check("active-setup game preset detection", () =>
+        {
+            string processName = GameDetectionService.NormalizeProcessName(Environment.ProcessPath ?? "PitLaunch");
+            Profile profile = new()
+            {
+                Name = "Already active rig",
+                GameProcesses = [processName],
+                GamePresets = [new GamePreset { ProcessName = processName, VolumePercent = 80 }]
+            };
+            ProfileDocument document = new()
+            {
+                Settings = new AppSettings { GameDetectionEnabled = true, GamePollSeconds = 30 },
+                Runtime = new RuntimeState { ActiveProfileId = profile.Id },
+                Profiles = [profile]
+            };
+            using GameDetectionService detection = new(() => document);
+            List<GameActivationRequest> requests = [];
+            detection.ActivationRequested += requests.Add;
+            detection.CheckNowForTest();
+            GameActivationRequest request = requests.Single();
+            if (request.ProfileId != profile.Id || request.Source != ActivationSource.GameDetected ||
+                !string.Equals(request.ProcessName, processName, StringComparison.OrdinalIgnoreCase) ||
+                !ProfileCoordinator.IsSameProfileGameSession(profile, profile, request.Source) ||
+                ProfileCoordinator.IsSameProfileGameSession(null, profile, request.Source) ||
+                ProfileCoordinator.IsSameProfileGameSession(profile, profile, ActivationSource.User))
+            {
+                throw new InvalidOperationException("A running game did not apply its preset when the setup was already active.");
+            }
+            document.Settings.GameDetectionEnabled = false;
+            detection.Refresh();
+            if (requests.Count != 2 || requests[1].ProfileId != profile.Id ||
+                requests[1].Source != ActivationSource.GameExited)
+            {
+                throw new InvalidOperationException("Turning game detection off did not restore the normal setup settings.");
+            }
+        });
+
+        Check("minimum update policy", () =>
+        {
+            const string policy = """
+                {
+                  "schemaVersion": 1,
+                  "minimumVersion": "0.9.9-beta.1",
+                  "message": "Update required.",
+                  "downloadUrl": "https://github.com/Cevzom/PitLaunch/releases/latest"
+                }
+                """;
+            UpdatePolicyResult oldBuild = UpdatePolicyService.Evaluate("0.9.8", policy);
+            UpdatePolicyResult currentBuild = UpdatePolicyService.Evaluate("0.9.9-beta.1", policy);
+            if (!oldBuild.IsRequired || oldBuild.MinimumVersion != "0.9.9-beta.1")
+                throw new InvalidOperationException("An obsolete build was not marked as requiring an update.");
+            if (currentBuild.State != UpdatePolicyState.Satisfied)
+                throw new InvalidOperationException("The minimum supported build was incorrectly blocked.");
+            if (!PitLaunchVersion.IsAtLeast("0.9.9", "0.9.9-beta.10") ||
+                PitLaunchVersion.IsAtLeast("0.9.9-beta.2", "0.9.9-beta.10"))
+            {
+                throw new InvalidOperationException("Prerelease versions were ordered incorrectly.");
+            }
+            UpdatePolicyResult malformed = UpdatePolicyService.Evaluate("0.9.8", "{not json");
+            if (malformed.IsRequired || malformed.State != UpdatePolicyState.Invalid)
+                throw new InvalidOperationException("A malformed policy did not fail open safely.");
+
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-policy-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(directory);
+                string file = Path.Combine(directory, "update-policy.json");
+                File.WriteAllText(file, policy, new UTF8Encoding(false));
+                UpdatePolicyResult local = new UpdatePolicyService(file).CheckAsync("0.9.8").GetAwaiter().GetResult();
+                if (!local.IsRequired)
+                    throw new InvalidOperationException("A valid local policy source was not evaluated.");
+                File.WriteAllText(file, policy.Replace("0.9.9-beta.1", "99.0.0", StringComparison.Ordinal),
+                    new UTF8Encoding(false));
+                UpdateStatus combined = new UpdateService(new UpdatePolicyService(file), () => null)
+                    .CheckAsync()
+                    .GetAwaiter()
+                    .GetResult();
+                if (!combined.IsRequired || combined.State != UpdateState.Required || combined.CanInstall ||
+                    combined.MinimumRequiredVersion != "99.0.0")
+                {
+                    throw new InvalidOperationException("The update service did not expose a mandatory policy safely.");
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch { }
+            }
+        });
+
+        Check("support bundle privacy", () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "PitLaunch-support-test-" + Guid.NewGuid().ToString("N"));
+            string logFile = Path.Combine(directory, "pitlaunch.log");
+            string selfTestFile = Path.Combine(directory, "self-test.json");
+            string bundleFile = Path.Combine(directory, "support.zip");
+            const string privateName = "Secret profile name";
+            const string secretToken = "pitlaunch-secret-token";
+            const string privateEmail = "driver@example.com";
+            Guid privateId = Guid.Parse("01234567-89ab-4def-8123-456789abcdef");
+            try
+            {
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(logFile,
+                    $"token={secretToken}{Environment.NewLine}" +
+                    $"user={privateEmail} home={Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)} id={privateId}" +
+                    Environment.NewLine + $"profile={privateName}",
+                    new UTF8Encoding(false));
+                File.WriteAllText(selfTestFile, JsonSerializer.Serialize(new
+                {
+                    passed = false,
+                    timestamp = DateTimeOffset.UtcNow,
+                    checks = new[] { new { name = "private check", passed = false, error = $"password={secretToken} {privateEmail}" } }
+                }), new UTF8Encoding(false));
+
+                ProfileDocument document = new();
+                document.Profiles.Add(new Profile
+                {
+                    Id = privateId,
+                    Name = privateName,
+                    Hotkey = "Ctrl+Alt+S",
+                    Display = new DisplaySnapshot
+                    {
+                        Monitors =
+                        [
+                            new MonitorSnapshot
+                            {
+                                DevicePath = "private-device-id",
+                                FriendlyName = "private-monitor-name",
+                                Enabled = true,
+                                Primary = true,
+                                Width = 2560,
+                                Height = 1440,
+                                RefreshNumerator = 144,
+                                RefreshDenominator = 1
+                            }
+                        ]
+                    },
+                    Apps =
+                    [
+                        new AppRule
+                        {
+                            ExecutablePath = @"C:\Users\Private\secret.exe",
+                            Arguments = "--token=" + secretToken,
+                            AudioDeviceId = "private-app-audio-device",
+                            VolumePercent = 73
+                        }
+                    ],
+                    Windows = [new WindowSnapshot { Title = "private window title" }],
+                    GameProcesses = ["private-game-process"],
+                    Discord = new DiscordSettings
+                    {
+                        OutputDeviceId = "private-discord-output",
+                        MicrophoneDeviceId = "private-discord-microphone"
+                    },
+                    GamePresets =
+                    [
+                        new GamePreset
+                        {
+                            ProcessName = "private-preset-process",
+                            AudioDeviceId = "private-game-audio-device",
+                            Apps = [new AppRule { ExecutablePath = @"C:\Users\Private\preset-secret.exe" }],
+                            CustomizeDiscord = true,
+                            Discord = new DiscordSettings
+                            {
+                                OutputDeviceId = "private-race-discord-output",
+                                MicrophoneDeviceId = "private-race-discord-microphone"
+                            }
+                        }
+                    ],
+                    ExpectedControllers = ["private-controller-name"],
+                    PowerPlanGuid = privateId.ToString()
+                });
+
+                SupportBundleService service = new(
+                    directory,
+                    Path.Combine(directory, "profiles.json"),
+                    logFile,
+                    selfTestFile);
+                SupportBundleResult result = service.Export(bundleFile, document);
+                if (!File.Exists(result.FilePath) || !result.Entries.Contains("profiles-sanitized.json") ||
+                    !result.Entries.Contains("self-test.json") || !result.Entries.Contains("logs/pitlaunch.log"))
+                {
+                    throw new InvalidOperationException("The support bundle omitted a required diagnostic entry.");
+                }
+
+                StringBuilder bundleText = new();
+                using System.IO.Compression.ZipArchive archive = System.IO.Compression.ZipFile.OpenRead(bundleFile);
+                foreach (System.IO.Compression.ZipArchiveEntry entry in archive.Entries)
+                {
+                    using StreamReader reader = new(entry.Open(), Encoding.UTF8);
+                    bundleText.AppendLine(reader.ReadToEnd());
+                }
+                string contents = bundleText.ToString();
+                foreach (string forbidden in new[]
+                         {
+                             privateName, secretToken, privateEmail, privateId.ToString(), "private-device-id",
+                             "private-monitor-name", "secret.exe", "private window title",
+                             "private-game-process", "private-preset-process", "preset-secret.exe",
+                             "private-controller-name", "private-app-audio-device", "private-discord-output",
+                             "private-discord-microphone", "private-game-audio-device",
+                             "private-race-discord-output", "private-race-discord-microphone"
+                         })
+                {
+                    if (contents.Contains(forbidden, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Private support data was not removed: " + forbidden);
+                }
+                if (!contents.Contains("<redacted>", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Secret-like log values were not visibly redacted.");
+            }
+            finally
+            {
+                try { Directory.Delete(directory, true); } catch { }
+            }
         });
 
         try

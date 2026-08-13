@@ -9,6 +9,11 @@ internal sealed class PitLaunchContext : ApplicationContext
     private readonly ContextMenuStrip _trayMenu;
     private readonly HotkeyService _hotkeys;
     private readonly GameDetectionService _games;
+    private readonly IntegrationServer _integration;
+    private readonly UpdateService _updates = new();
+    private readonly TaskCompletionSource<bool> _updatePolicyReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private volatile bool _automationAllowed;
     private bool _emergencyHotkeyWarningShown;
     private bool _exiting;
     private bool _disposed;
@@ -23,6 +28,13 @@ internal sealed class PitLaunchContext : ApplicationContext
             new AudioService(),
             new WindowService(),
             new AppService());
+        bool policyConfigured = !string.IsNullOrWhiteSpace(AppInfo.ResolvedUpdatePolicyUrl);
+        _automationAllowed = !policyConfigured;
+        if (policyConfigured)
+        {
+            _coordinator.SetSwitchBlockReason(
+                "PitLaunch is checking whether this version is still supported. Try again in a moment.");
+        }
         _form = new MainForm(_coordinator);
         _ = _form.Handle;
 
@@ -50,26 +62,100 @@ internal sealed class PitLaunchContext : ApplicationContext
         _hotkeys = new HotkeyService();
         _hotkeys.Pressed += profileId => DispatchToUi(() => _form.ActivateProfileAsync(profileId, ActivationSource.Hotkey));
         _hotkeys.EmergencyDisplayRestorePressed += () => DispatchToUi(() => RestoreAllDisplaysAsync(false));
+        _hotkeys.ToggleProfilePressed += () => DispatchToUi(ActivateToggleFromHotkeyAsync);
 
         _games = new GameDetectionService(() => _coordinator.Document);
-        _games.ActivationRequested += (profileId, source) =>
-            DispatchToUi(() => _form.ActivateProfileAsync(profileId, source));
+        _games.ActivationRequested += request =>
+            DispatchToUi(() => _coordinator.ActivateAsync(
+                request.ProfileId,
+                request.Source,
+                request.ProcessName));
+        _games.WarningRaised += message => DispatchToUi(() =>
+        {
+            Notify("Game automation needs attention", message, ToolTipIcon.Warning);
+            return Task.CompletedTask;
+        });
+
+        _integration = new IntegrationServer(
+            () => DispatchToUi(() => Task.FromResult(BuildIntegrationState())),
+            profileId => DispatchToUi(() => ActivateForIntegrationAsync(profileId)),
+            () => DispatchToUi(ActivateToggleForIntegrationAsync),
+            () => DispatchToUi(async () =>
+            {
+                OperationReport report = await RestoreAllDisplaysAsync(false);
+                return new IntegrationRestoreResult(!report.HasErrors, report.Summary);
+            }));
 
         _coordinator.ProfilesChanged += () => DispatchToUi(() =>
         {
             RefreshIntegrations();
+            _integration.NotifyProfilesChanged();
+            _integration.NotifyStatusChanged();
             return Task.CompletedTask;
         });
+        _coordinator.BusyChanged += (_, _) => _integration.NotifyStatusChanged();
         _coordinator.SwitchCompleted += completed => DispatchToUi(() =>
         {
             ShowSwitchNotification(completed);
+            _integration.NotifyStatusChanged();
             return Task.CompletedTask;
         });
 
+        _integration.Start();
         _instance.StartServer(request => DispatchToUi(() => HandleRequestAsync(request)));
         RefreshIntegrations();
+        _ = CheckUpdatesAtStartupAsync();
 
         _form.BeginInvoke(async () => await HandleRequestAsync(initialRequest));
+    }
+
+    private async Task CheckUpdatesAtStartupAsync()
+    {
+        try
+        {
+            UpdatePolicyResult policy = await _updates.CheckPolicyAsync().ConfigureAwait(false);
+            _automationAllowed = !policy.IsRequired;
+            _coordinator.SetSwitchBlockReason(policy.IsRequired
+                ? policy.Message + " Update PitLaunch before switching setups from the app, tray, hotkey, game detection, command line, or Stream Deck."
+                : null);
+            _updatePolicyReady.TrySetResult(true);
+            await DispatchToUi(() =>
+            {
+                RefreshIntegrations();
+                if (policy.IsRequired)
+                {
+                    _form.ShowWindow();
+                    _form.ApplyStartupUpdateStatus(new UpdateStatus(
+                        UpdateState.Required,
+                        policy.Message,
+                        Policy: policy));
+                }
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+
+            UpdateStatus status = await _updates.CheckAsync(policy).ConfigureAwait(false);
+            await DispatchToUi(() =>
+            {
+                _form.ApplyStartupUpdateStatus(status);
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Startup update check failed: " + ex.Message);
+            _coordinator.SetSwitchBlockReason(null); // Policy failures deliberately fail open.
+            _automationAllowed = true;
+            _updatePolicyReady.TrySetResult(true);
+            try
+            {
+                await DispatchToUi(() =>
+                {
+                    RefreshIntegrations();
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
+            }
+            catch { }
+        }
     }
 
     private void BuildTrayMenu()
@@ -81,6 +167,14 @@ internal sealed class PitLaunchContext : ApplicationContext
         _trayMenu.Items.Add(MenuItem(
             $"Restore all displays ({AppInfo.EmergencyDisplayHotkey})",
             async (_, _) => await RestoreAllDisplaysAsync(false)));
+        _trayMenu.Items.Add(MenuItem(
+            "Toggle Desk / Rig",
+            async (_, _) => await ToggleFromTrayAsync()));
+        ToolStripMenuItem undo = MenuItem(
+            "Undo last switch",
+            async (_, _) => await UndoLastSwitchAsync());
+        undo.Enabled = _coordinator.CanUndo && !_coordinator.IsBusy;
+        _trayMenu.Items.Add(undo);
         _trayMenu.Items.Add(new ToolStripSeparator());
 
         foreach (Profile profile in _coordinator.Document.Profiles)
@@ -120,6 +214,9 @@ internal sealed class PitLaunchContext : ApplicationContext
 
     private async Task HandleRequestAsync(LaunchRequest request)
     {
+        if (request.Kind is LaunchRequestKind.ActivateProfile or LaunchRequestKind.ToggleProfile)
+            await _updatePolicyReady.Task;
+
         switch (request.Kind)
         {
             case LaunchRequestKind.Show:
@@ -131,17 +228,17 @@ internal sealed class PitLaunchContext : ApplicationContext
             case LaunchRequestKind.Background:
                 break;
             case LaunchRequestKind.ActivateProfile:
-            {
-                Profile? profile = _coordinator.FindProfile(request.Value);
-                if (profile is null)
                 {
-                    Notify("Profile not found", $"No profile named {request.Value} exists.", ToolTipIcon.Warning);
-                    AppLog.Error("Command line profile not found: " + request.Value);
+                    Profile? profile = _coordinator.FindProfile(request.Value);
+                    if (profile is null)
+                    {
+                        Notify("Profile not found", $"No profile named {request.Value} exists.", ToolTipIcon.Warning);
+                        AppLog.Error("Command line profile not found: " + request.Value);
+                        break;
+                    }
+                    await _form.ActivateProfileAsync(profile.Id, ActivationSource.CommandLine);
                     break;
                 }
-                await _form.ActivateProfileAsync(profile.Id, ActivationSource.CommandLine);
-                break;
-            }
             case LaunchRequestKind.CaptureProfile:
                 if (string.IsNullOrWhiteSpace(request.Value))
                 {
@@ -156,6 +253,12 @@ internal sealed class PitLaunchContext : ApplicationContext
             case LaunchRequestKind.RestoreDisplays:
                 await RestoreAllDisplaysAsync(false);
                 break;
+            case LaunchRequestKind.ToggleProfile:
+                await ToggleFromCommandLineAsync();
+                break;
+            case LaunchRequestKind.UndoSwitch:
+                await UndoLastSwitchAsync();
+                break;
             case LaunchRequestKind.Exit:
                 ExitApplication();
                 break;
@@ -164,7 +267,9 @@ internal sealed class PitLaunchContext : ApplicationContext
 
     private void RefreshIntegrations()
     {
-        List<string> hotkeyWarnings = _hotkeys.RegisterProfiles(_coordinator.Document.Profiles);
+        List<string> hotkeyWarnings = _hotkeys.RegisterProfiles(
+            _coordinator.Document.Profiles,
+            _coordinator.Document.Settings.ToggleHotkey);
         foreach (string warning in hotkeyWarnings) AppLog.Write(OperationSeverity.Warning, "Hotkeys: " + warning);
         if (!_hotkeys.EmergencyDisplayHotkeyRegistered && !_emergencyHotkeyWarningShown)
         {
@@ -173,12 +278,12 @@ internal sealed class PitLaunchContext : ApplicationContext
                 $"{AppInfo.EmergencyDisplayHotkey} is already used by another app. Restore displays remains available from PitLaunch and its tray menu.",
                 ToolTipIcon.Warning);
         }
-        _games.Refresh();
+        _games.Refresh(_automationAllowed);
         Profile? active = _coordinator.ActiveProfile;
         _tray.Text = active is null ? AppInfo.ProductName : TrimTrayText(AppInfo.ProductName + " - " + active.Name);
     }
 
-    private async Task RestoreAllDisplaysAsync(bool showWindow)
+    private async Task<OperationReport> RestoreAllDisplaysAsync(bool showWindow)
     {
         if (showWindow) _form.ShowWindow();
         OperationReport report = await _form.RestoreAllDisplaysAsync();
@@ -188,6 +293,85 @@ internal sealed class PitLaunchContext : ApplicationContext
         OperationMessage? important = report.Messages.FirstOrDefault(message => message.Severity == OperationSeverity.Error)
                                       ?? report.Messages.FirstOrDefault(message => message.Severity == OperationSeverity.Warning);
         Notify(report.Summary, important?.Message ?? "Every connected monitor is enabled.", icon);
+        return report;
+    }
+
+    private IntegrationStateSnapshot BuildIntegrationState()
+    {
+        IntegrationProfileSnapshot[] profiles = _coordinator.Document.Profiles
+            .Select(profile => new IntegrationProfileSnapshot(profile.Id, profile.Name, profile.Kind.ToString()))
+            .ToArray();
+        return new IntegrationStateSnapshot(
+            profiles,
+            _coordinator.Document.Runtime.ActiveProfileId,
+            _coordinator.IsBusy);
+    }
+
+    private async Task<IntegrationActivationResult> ActivateForIntegrationAsync(Guid profileId)
+    {
+        ProfileSwitchCompleted? completed = await _coordinator.ActivateAsync(profileId, ActivationSource.Integration);
+        if (completed is null)
+        {
+            return new IntegrationActivationResult(null, null, false, "That setup no longer exists in PitLaunch.");
+        }
+
+        return new IntegrationActivationResult(
+            completed.Profile.Id,
+            completed.Profile.Name,
+            !completed.Report.HasErrors,
+            completed.Report.Summary);
+    }
+
+    private async Task<IntegrationActivationResult> ActivateToggleForIntegrationAsync()
+    {
+        ProfileSwitchCompleted? completed = await _coordinator.ToggleDeskRigAsync(ActivationSource.Integration);
+        return completed is null
+            ? new IntegrationActivationResult(null, null, false, "Create a Desk and Sim Racing setup in PitLaunch first.")
+            : new IntegrationActivationResult(
+                completed.Profile.Id,
+                completed.Profile.Name,
+                !completed.Report.HasErrors,
+                completed.Report.Summary);
+    }
+
+    private async Task ToggleFromTrayAsync()
+    {
+        bool found = await _form.ToggleDeskRigAsync(ActivationSource.Tray);
+        if (!found)
+        {
+            Notify("No setup to switch to", "Create a Desk and Sim Racing setup first.", ToolTipIcon.Warning);
+        }
+    }
+
+    private async Task ToggleFromCommandLineAsync()
+    {
+        ProfileSwitchCompleted? completed = await _coordinator.ToggleDeskRigAsync(ActivationSource.CommandLine);
+        if (completed is null)
+        {
+            Notify("No setup to switch to", "Create a Desk and Sim Racing setup first.", ToolTipIcon.Warning);
+        }
+    }
+
+    private async Task ActivateToggleFromHotkeyAsync()
+    {
+        ProfileSwitchCompleted? completed = await _coordinator.ToggleDeskRigAsync(ActivationSource.Hotkey);
+        if (completed is null)
+            Notify("Two setups needed", "Create both a Desk and Sim Racing setup to use the toggle hotkey.", ToolTipIcon.Warning);
+    }
+
+    private async Task UndoLastSwitchAsync()
+    {
+        if (!_coordinator.CanUndo)
+        {
+            Notify("Nothing to undo", "PitLaunch has no previous switch checkpoint.", ToolTipIcon.Warning);
+            return;
+        }
+
+        OperationReport report = await _coordinator.UndoLastSwitchAsync();
+        ToolTipIcon icon = report.HasErrors
+            ? ToolTipIcon.Error
+            : report.HasWarnings ? ToolTipIcon.Warning : ToolTipIcon.Info;
+        Notify("Undo last switch", report.HasErrors ? report.Summary : "Returned to the previous setup.", icon);
     }
 
     private void ShowSwitchNotification(ProfileSwitchCompleted completed)
@@ -233,6 +417,32 @@ internal sealed class PitLaunchContext : ApplicationContext
         return completion.Task;
     }
 
+    private Task<T> DispatchToUi<T>(Func<Task<T>> action)
+    {
+        if (_disposed || _form.IsDisposed) return Task.FromException<T>(new ObjectDisposedException(nameof(PitLaunchContext)));
+        TaskCompletionSource<T> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            _form.BeginInvoke(async () =>
+            {
+                try
+                {
+                    completion.SetResult(await action());
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Error(ex.ToString());
+                    completion.SetException(ex);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            completion.SetException(ex);
+        }
+        return completion.Task;
+    }
+
     private void ExitApplication()
     {
         if (_exiting) return;
@@ -257,6 +467,7 @@ internal sealed class PitLaunchContext : ApplicationContext
         {
             _disposed = true;
             _tray.Visible = false;
+            _integration.Dispose();
             _games.Dispose();
             _hotkeys.Dispose();
             _tray.Dispose();
