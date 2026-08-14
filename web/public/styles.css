@@ -945,10 +945,15 @@ h1 > span {
 	border: 1px solid var(--line);
 	border-radius: 14px;
 	background: var(--surface);
-	transition: border-color .3s ease, transform .3s var(--ease);
+	box-shadow: 0 18px 45px -38px rgba(0, 0, 0, .85);
+	transition: border-color .3s ease, box-shadow .3s ease, transform .3s var(--ease);
 }
 
-.control-card:hover { border-color: #3a4650; transform: translateY(-3px); }
+.control-card:hover {
+	border-color: #46545e;
+	box-shadow: 0 28px 52px -32px rgba(0, 0, 0, .95), 0 12px 28px -24px rgba(32, 184, 240, .48);
+	transform: translateY(-5px) scale(1.004);
+}
 .control-card h3 { margin-bottom: 11px; font-size: 21px; }
 .control-card > p:last-child, .control-copy > p:last-child { margin-bottom: 0; color: var(--muted); font-size: 15.5px; }
 .card-label { margin-bottom: 25px; color: var(--cyan); font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
