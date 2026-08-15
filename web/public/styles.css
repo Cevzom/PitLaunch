@@ -1837,6 +1837,73 @@ kbd {
 .final-inner > p { max-width: 53ch; }
 .install-note { margin-top: 23px !important; color: var(--faint) !important; font-size: 13px !important; }
 
+/* Legal / long-form reading pages (privacy, terms). A single narrow column instead of the
+   marketing page's wide sections — nothing here needs a hero or a bento grid. */
+.legal { padding-top: 150px; }
+
+.legal-wrap { max-width: 760px; }
+
+.legal-back {
+	margin-bottom: 40px;
+	font-size: 14px;
+}
+
+.legal-dek {
+	max-width: 62ch;
+	margin-bottom: 0;
+	color: var(--muted);
+	font-size: 17px;
+	line-height: 1.6;
+}
+
+.legal-body { display: flex; flex-direction: column; gap: 40px; }
+
+.legal-body h2 {
+	margin-bottom: 14px;
+	font-size: 21px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.legal-body p {
+	margin-bottom: 14px;
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1.7;
+}
+
+.legal-body p:last-child { margin-bottom: 0; }
+
+.legal-body ul {
+	margin: 0 0 14px;
+	padding-left: 22px;
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1.7;
+}
+
+.legal-body li { margin-bottom: 4px; }
+
+.legal-body a { color: var(--cyan-light); }
+.legal-body a:hover { color: var(--cyan); }
+
+.legal-body strong { color: var(--text); }
+
+.legal-body code {
+	background: var(--surface-2);
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	padding: 2px 7px;
+	font-family: ui-monospace, "Cascadia Code", monospace;
+	font-size: 14px;
+	color: var(--text);
+}
+
+@media (max-width: 720px) {
+	.legal { padding-top: 120px; }
+	.legal-body h2 { font-size: 19px; }
+}
+
 .foot {
 	padding: 34px 0;
 	background: #080a0b;
