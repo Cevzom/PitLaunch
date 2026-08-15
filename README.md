@@ -46,7 +46,7 @@ PitLaunch 1.0 behavior in this comparison was verified locally on the launch mac
 - [Portable ZIP](https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Portable.zip) — runs without installation and does not auto-update.
 - [Stream Deck plugin](https://github.com/Cevzom/PitLaunch/releases/latest/download/com.cevzom.pitlaunch.streamDeckPlugin) — can also be installed from **PitLaunch → Integrations**.
 
-Windows 10/11 x64 · .NET included · MIT licensed
+Windows 10/11 x64 · .NET included · Source available
 
 ### Windows SmartScreen
 
@@ -74,4 +74,5 @@ The hash beside `PitLaunch-win-Setup.exe` must match exactly. The portable ZIP a
 
 ## License
 
-[MIT](LICENSE) © 2026 Cevzom
+Copyright © 2026 Cevzom. All rights reserved.  
+Source code is available for viewing only. See [LICENSE](LICENSE) for details.
