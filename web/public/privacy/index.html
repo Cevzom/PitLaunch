@@ -37,7 +37,7 @@
 				<img src="/img/mark-96.png" alt="" width="30" height="30" />
 				<span>PitLaunch</span>
 			</a>
-			<a class="btn btn-sm nav-download" data-download
+			<a class="btn btn-sm nav-download" data-download data-download-placement="privacy-nav"
 				href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe">Download</a>
 		</div>
 	</header>
@@ -134,17 +134,40 @@
 		</section>
 	</main>
 
-	<footer class="foot">
-		<div class="wrap foot-inner">
-			<a class="brand foot-brand" href="/#top"><img src="/img/mark-96.png" alt="" width="26" height="26" /><span>PitLaunch</span></a>
-			<p>Built for one desk and one rig. Used daily on both.</p>
-			<nav aria-label="Footer navigation">
-				<a href="https://github.com/Cevzom/PitLaunch">GitHub</a>
-				<a href="https://github.com/Cevzom/PitLaunch/releases">Releases</a>
-				<a href="https://github.com/Cevzom/PitLaunch/blob/main/docs/USER-GUIDE.md">User guide</a>
-				<a href="/privacy/">Privacy</a>
+	<footer class="foot" id="contact">
+		<div class="wrap foot-top">
+			<a class="foot-mark reveal" href="/#top" aria-label="PitLaunch home">
+				<img src="/img/mark-256.png" alt="" width="60" height="60" />
+			</a>
+			<nav class="foot-nav reveal" aria-label="Footer navigation">
+				<a href="/#features"><span>Features</span></a>
+				<a href="/#control"><span>Control</span></a>
+				<a href="/#pricing"><span>Pricing</span></a>
+				<a href="https://github.com/Cevzom/PitLaunch"><span>GitHub</span></a>
+				<a href="https://github.com/Cevzom/PitLaunch/blob/main/docs/USER-GUIDE.md"><span>User guide</span></a>
+				<a href="/privacy/"><span>Privacy</span></a>
 			</nav>
+			<div class="foot-contact reveal">
+				<p class="foot-note">Email for detailed support. Discord for quick questions and early feedback.</p>
+				<div class="foot-socials" aria-label="Contact PitLaunch">
+					<a class="foot-social" href="mailto:pitlaunchsupport@gmail.com" data-contact-link aria-label="Email pitlaunchsupport@gmail.com">
+						<img src="/img/contact-gmail.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">pitlaunchsupport@gmail.com</span>
+					</a>
+					<button class="foot-social" type="button" data-contact-link data-copy-contact="skyz9999" aria-label="Copy Discord username skyz9999">
+						<img src="/img/contact-discord.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">skyz9999</span>
+					</button>
+					<a class="foot-social" href="https://github.com/Cevzom/PitLaunch" data-contact-link aria-label="PitLaunch on GitHub">
+						<img src="/img/contact-github.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">Cevzom/PitLaunch</span>
+					</a>
+				</div>
+				<p class="foot-status" data-contact-status role="status" aria-live="polite">Click Discord to copy the username.</p>
+			</div>
 		</div>
+		<div class="foot-divider" aria-hidden="true"></div>
+		<p class="foot-copy">&copy; <span data-year>2026</span> PitLaunch. All rights reserved.</p>
 	</footer>
 
 	<script src="/main.js" defer></script>

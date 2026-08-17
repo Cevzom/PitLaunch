@@ -50,7 +50,7 @@
 				<a href="#pricing" data-nav-link data-nav-target="pricing"><span class="nav-symbol" aria-hidden="true">$</span><span class="nav-label">Pricing</span><i class="nav-lamp" aria-hidden="true"></i></a>
 				<a href="#safety" data-nav-link data-nav-target="safety"><span class="nav-symbol" aria-hidden="true">&#10003;</span><span class="nav-label">Safety</span><i class="nav-lamp" aria-hidden="true"></i></a>
 			</nav>
-			<a class="btn btn-sm nav-download" data-download
+			<a class="btn btn-sm nav-download" data-download data-download-placement="nav"
 				href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe">Download</a>
 		</div>
 	</header>
@@ -65,7 +65,7 @@
 					<h1 class="reveal">From desk to rig.<br /><span>Move the whole PC.</span></h1>
 					<p class="lede reveal">One switch restores your displays, sound, windows and apps—safely and together.</p>
 					<div class="cta reveal">
-						<a class="btn btn-lg" data-download
+						<a class="btn btn-lg" data-download data-download-placement="hero"
 							href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe">
 							<span aria-hidden="true">↓</span> Download for Windows
 						</a>
@@ -241,7 +241,7 @@
 						</div>
 						<p class="pricing-description">The full PitLaunch experience for one Windows PC.</p>
 						<div class="pricing-price"><strong>$0</strong><span>/ local app</span></div>
-						<a class="btn pricing-button" data-download href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe">Download free</a>
+						<a class="btn pricing-button" data-download data-download-placement="pricing" href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe">Download free</a>
 					</div>
 					<div class="pricing-card-body">
 						<ul class="pricing-list" role="list">
@@ -504,32 +504,6 @@
 			</div>
 		</section>
 
-		<section class="section contact" id="contact">
-			<div class="contact-glow" aria-hidden="true"></div>
-			<div class="wrap contact-inner">
-				<div class="contact-copy reveal">
-					<p class="eyebrow"><span></span> Feedback &amp; support</p>
-					<h2>Found a bug?<br />Have an idea?</h2>
-					<p>Email is best for detailed support. Discord is there for quick questions, early feedback, and the small things that are easier to explain in a chat.</p>
-				</div>
-				<div class="contact-actions reveal">
-					<div class="contact-socials" aria-label="Contact PitLaunch">
-						<a class="contact-social-link" href="mailto:pitlaunchsupport@gmail.com" data-contact-link>
-							<span class="contact-social-preview" aria-hidden="true"><img src="/img/contact-gmail.svg" alt="" width="64" height="64" /></span>
-							<span class="contact-social-name">Gmail</span>
-							<small>pitlaunchsupport@gmail.com</small>
-						</a>
-						<button class="contact-social-link" type="button" data-contact-link data-copy-contact="skyz9999">
-							<span class="contact-social-preview" aria-hidden="true"><img src="/img/contact-discord.svg" alt="" width="64" height="64" /></span>
-							<span class="contact-social-name">Discord</span>
-							<small>skyz9999</small>
-						</button>
-					</div>
-					<p class="contact-status" data-contact-status role="status" aria-live="polite">Click Discord to copy the username.</p>
-				</div>
-			</div>
-		</section>
-
 		<section class="section final">
 			<div class="final-glow" aria-hidden="true"></div>
 			<div class="wrap final-inner reveal">
@@ -538,20 +512,48 @@
 				<h2>One PC. Two places.<br />Nothing to reconfigure.</h2>
 				<p>Capture your desk and rig once. Let PitLaunch handle the move from then on.</p>
 				<div class="cta center">
-					<a class="btn btn-lg" data-download href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe"><span aria-hidden="true">↓</span> Download for Windows</a>
-					<a class="btn btn-ghost btn-lg" href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Portable.zip">Portable ZIP</a>
+					<a class="btn btn-lg" data-download data-download-placement="final" href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Setup.exe"><span aria-hidden="true">↓</span> Download for Windows</a>
+					<a class="btn btn-ghost btn-lg" data-download-placement="final" href="https://github.com/Cevzom/PitLaunch/releases/latest/download/PitLaunch-win-Portable.zip">Portable ZIP</a>
 				</div>
 				<p class="install-note">No admin required · Windows 10/11 · Self-updating · All rights reserved</p>
 			</div>
 		</section>
 	</main>
 
-	<footer class="foot">
-		<div class="wrap foot-inner">
-			<a class="brand foot-brand" href="#top"><img src="/img/mark-96.png" alt="" width="26" height="26" /><span>PitLaunch</span></a>
-			<p>Built for one desk and one rig. Used daily on both.</p>
-			<nav aria-label="Footer navigation"><a href="https://github.com/Cevzom/PitLaunch">GitHub</a><a href="https://github.com/Cevzom/PitLaunch/releases">Releases</a><a href="https://github.com/Cevzom/PitLaunch/blob/main/docs/USER-GUIDE.md">User guide</a><a href="#contact">Contact</a><a href="/privacy/">Privacy</a></nav>
+	<footer class="foot" id="contact">
+		<div class="wrap foot-top">
+			<a class="foot-mark reveal" href="#top" aria-label="PitLaunch home">
+				<img src="/img/mark-256.png" alt="" width="60" height="60" />
+			</a>
+			<nav class="foot-nav reveal" aria-label="Footer navigation">
+				<a href="#features"><span>Features</span></a>
+				<a href="#control"><span>Control</span></a>
+				<a href="#pricing"><span>Pricing</span></a>
+				<a href="https://github.com/Cevzom/PitLaunch"><span>GitHub</span></a>
+				<a href="https://github.com/Cevzom/PitLaunch/blob/main/docs/USER-GUIDE.md"><span>User guide</span></a>
+				<a href="/privacy/"><span>Privacy</span></a>
+			</nav>
+			<div class="foot-contact reveal">
+				<p class="foot-note">Email for detailed support. Discord for quick questions and early feedback.</p>
+				<div class="foot-socials" aria-label="Contact PitLaunch">
+					<a class="foot-social" href="mailto:pitlaunchsupport@gmail.com" data-contact-link aria-label="Email pitlaunchsupport@gmail.com">
+						<img src="/img/contact-gmail.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">pitlaunchsupport@gmail.com</span>
+					</a>
+					<button class="foot-social" type="button" data-contact-link data-copy-contact="skyz9999" aria-label="Copy Discord username skyz9999">
+						<img src="/img/contact-discord.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">skyz9999</span>
+					</button>
+					<a class="foot-social" href="https://github.com/Cevzom/PitLaunch" data-contact-link aria-label="PitLaunch on GitHub">
+						<img src="/img/contact-github.svg" alt="" width="34" height="34" />
+						<span class="foot-social-tip" aria-hidden="true">Cevzom/PitLaunch</span>
+					</a>
+				</div>
+				<p class="foot-status" data-contact-status role="status" aria-live="polite">Click Discord to copy the username.</p>
+			</div>
 		</div>
+		<div class="foot-divider" aria-hidden="true"></div>
+		<p class="foot-copy">&copy; <span data-year>2026</span> PitLaunch. All rights reserved.</p>
 	</footer>
 
 	<script src="/main.js" defer></script>

@@ -376,12 +376,6 @@
 	const contactLinks = [...document.querySelectorAll("[data-contact-link]")];
 	const contactStatus = document.querySelector("[data-contact-status]");
 	contactLinks.forEach((link) => {
-		const setRotation = () => {
-			const rotation = Math.round(Math.random() * 20 - 10);
-			link.style.setProperty("--contact-rotation", `${rotation}deg`);
-		};
-		link.addEventListener("pointerenter", setRotation);
-		link.addEventListener("focus", setRotation);
 		link.addEventListener("click", async (event) => {
 			link.classList.remove("is-clicked");
 			window.requestAnimationFrame(() => link.classList.add("is-clicked"));
@@ -396,6 +390,28 @@
 			} catch {
 				if (contactStatus) contactStatus.textContent = `Discord username: ${value}`;
 			}
+		});
+	});
+
+	document.querySelectorAll("[data-year]").forEach((element) => {
+		element.textContent = new Date().getFullYear();
+	});
+
+	/*
+	 * Report download-button presses to the Google Analytics tag loaded in the page head.
+	 * gtag sends these with sendBeacon, so the event survives the navigation to GitHub.
+	 * Nothing here is required for the button to work: if the tag is blocked, the click still
+	 * follows the link.
+	 */
+	document.querySelectorAll('a[href*="/releases/latest/download/"]').forEach((link) => {
+		link.addEventListener("click", () => {
+			if (typeof window.gtag !== "function") return;
+			const url = link.getAttribute("href") || "";
+			window.gtag("event", "download_click", {
+				asset: /Portable/i.test(url) ? "portable-zip" : "installer-exe",
+				placement: link.dataset.downloadPlacement || "unknown",
+				link_url: url
+			});
 		});
 	});
 
