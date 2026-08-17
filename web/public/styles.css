@@ -1811,6 +1811,106 @@ kbd {
 .accordion-panel > div { overflow: hidden; }
 .accordion-panel p { max-width: 65ch; margin: -1px 52px 18px 19px; color: var(--muted); font-size: 15px; }
 
+.contact {
+	min-height: 520px;
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	background: linear-gradient(180deg, transparent, rgba(18, 24, 28, .54), transparent);
+}
+
+.contact-glow {
+	position: absolute;
+	width: 720px;
+	height: 470px;
+	right: -120px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: radial-gradient(ellipse, rgba(32, 184, 240, .13), transparent 67%);
+	pointer-events: none;
+}
+
+.contact-inner {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, .85fr) minmax(420px, 1.15fr);
+	align-items: center;
+	gap: clamp(55px, 8vw, 120px);
+}
+
+.contact-copy h2 { max-width: 610px; font-size: clamp(38px, 4.6vw, 61px); }
+.contact-copy > p:last-child { max-width: 53ch; color: var(--muted); font-size: 17px; line-height: 1.65; }
+.contact-actions { padding-top: 78px; }
+
+.contact-socials {
+	display: flex;
+	align-items: stretch;
+	justify-content: flex-end;
+	gap: 0;
+	border-top: 1px solid var(--line);
+	border-bottom: 1px solid var(--line);
+}
+
+.contact-social-link {
+	--contact-rotation: 0deg;
+	position: relative;
+	display: flex;
+	min-width: 0;
+	flex: 1 1 0;
+	flex-direction: column;
+	gap: 5px;
+	margin: 0;
+	padding: 20px 22px;
+	border: 0;
+	border-right: 1px solid var(--line);
+	background: transparent;
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: opacity .2s ease, background .2s ease, transform .2s var(--ease);
+}
+
+.contact-social-link:last-child { border-right: 0; }
+.contact-socials:hover .contact-social-link:not(:hover) { opacity: .45; }
+.contact-social-link:hover { background: rgba(255, 255, 255, .025); }
+.contact-social-link:focus-visible { z-index: 2; outline: 2px solid rgba(32, 184, 240, .65); outline-offset: -2px; }
+.contact-social-name { color: #fff; font-family: var(--display); font-size: 19px; font-weight: 600; }
+.contact-social-link small { overflow: hidden; color: var(--faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+.contact-social-preview {
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 7px);
+	display: grid;
+	width: 70px;
+	height: 70px;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, .12);
+	border-radius: 18px;
+	background: rgba(13, 17, 20, .92);
+	box-shadow: 0 20px 36px -16px #000, 0 0 28px rgba(32, 184, 240, .12);
+	filter: blur(2px);
+	opacity: 0;
+	transform: translate(-50%, 12px) rotate(var(--contact-rotation));
+	transition: opacity .2s ease, filter .2s ease, transform .2s var(--ease);
+	pointer-events: none;
+}
+
+.contact-social-preview img { display: block; width: 58px; height: 58px; }
+.contact-social-link:hover .contact-social-preview,
+.contact-social-link:focus-visible .contact-social-preview,
+.contact-social-link.is-clicked .contact-social-preview {
+	filter: blur(0);
+	opacity: 1;
+	transform: translate(-50%, 0) rotate(var(--contact-rotation));
+}
+
+.contact-social-link.is-clicked .contact-social-preview { animation: contact-social-pop .3s var(--ease); }
+@keyframes contact-social-pop { 50% { transform: translate(-50%, 0) rotate(var(--contact-rotation)) scale(1.3); } }
+
+.contact-status { min-height: 20px; margin: 13px 0 0; color: var(--faint); font-size: 12px; text-align: right; }
+
 .final {
 	min-height: 600px;
 	display: grid;
@@ -2099,6 +2199,14 @@ kbd {
 	.setting-row > div { max-width: 70%; }
 	.setting-row kbd, .setting-row .preview-secondary { align-self: center; font-size: 8px; }
 	.safety-item { grid-template-columns: 32px 1fr; gap: 10px; }
+	.contact { min-height: auto; }
+	.contact-inner { grid-template-columns: 1fr; gap: 38px; }
+	.contact-copy h2 { font-size: clamp(31px, 9vw, 42px); }
+	.contact-copy > p:last-child { font-size: 16.5px; }
+	.contact-actions { padding-top: 74px; }
+	.contact-socials { justify-content: stretch; }
+	.contact-social-link { padding-inline: 14px; }
+	.contact-social-link small { font-size: 10px; }
 	.foot-inner { align-items: flex-start; flex-direction: column; }
 	.foot-inner > p { margin: 0; }
 	.foot nav { flex-wrap: wrap; }

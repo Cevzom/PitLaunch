@@ -372,6 +372,33 @@
 		});
 	});
 
+	/* Lightweight version of the animated social-links component for this static site. */
+	const contactLinks = [...document.querySelectorAll("[data-contact-link]")];
+	const contactStatus = document.querySelector("[data-contact-status]");
+	contactLinks.forEach((link) => {
+		const setRotation = () => {
+			const rotation = Math.round(Math.random() * 20 - 10);
+			link.style.setProperty("--contact-rotation", `${rotation}deg`);
+		};
+		link.addEventListener("pointerenter", setRotation);
+		link.addEventListener("focus", setRotation);
+		link.addEventListener("click", async (event) => {
+			link.classList.remove("is-clicked");
+			window.requestAnimationFrame(() => link.classList.add("is-clicked"));
+			window.setTimeout(() => link.classList.remove("is-clicked"), 320);
+
+			const value = link.dataset.copyContact;
+			if (!value) return;
+			event.preventDefault();
+			try {
+				await navigator.clipboard.writeText(value);
+				if (contactStatus) contactStatus.textContent = `Copied ${value} — paste it into Discord.`;
+			} catch {
+				if (contactStatus) contactStatus.textContent = `Discord username: ${value}`;
+			}
+		});
+	});
+
 	/* Use the release API only to improve the static version label; the page works without it. */
 	const versionElements = document.querySelectorAll("[data-version]");
 	if (versionElements.length) {
