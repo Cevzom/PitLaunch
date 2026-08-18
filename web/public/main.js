@@ -403,12 +403,14 @@
 	 * Nothing here is required for the button to work: if the tag is blocked, the click still
 	 * follows the link.
 	 */
-	document.querySelectorAll('a[href*="/releases/latest/download/"]').forEach((link) => {
+	document.querySelectorAll("a[data-download]").forEach((link) => {
 		link.addEventListener("click", () => {
 			if (typeof window.gtag !== "function") return;
 			const url = link.getAttribute("href") || "";
 			window.gtag("event", "download_click", {
-				asset: /Portable/i.test(url) ? "portable-zip" : "installer-exe",
+				asset: /apps\.microsoft\.com/i.test(url)
+					? "microsoft-store"
+					: /Portable/i.test(url) ? "portable-zip" : "installer-exe",
 				placement: link.dataset.downloadPlacement || "unknown",
 				link_url: url
 			});

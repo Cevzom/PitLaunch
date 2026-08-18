@@ -1230,6 +1230,19 @@ h1 > span {
 	box-shadow: 0 12px 30px -14px rgba(32, 184, 240, .8);
 }
 
+.pricing-download-alt {
+	display: block;
+	margin-top: 13px;
+	color: var(--muted);
+	font-size: 13px;
+	text-align: center;
+	text-decoration: underline;
+	text-decoration-color: rgba(255, 255, 255, .2);
+	text-underline-offset: 4px;
+}
+
+.pricing-download-alt:hover { color: var(--text); }
+
 .pricing-card-body {
 	padding: 21px 19px 19px;
 }
@@ -1835,7 +1848,9 @@ kbd {
 .final .eyebrow { margin-bottom: 18px; }
 .final h2 { max-width: 850px; font-size: clamp(38px, 5vw, 62px); }
 .final-inner > p { max-width: 53ch; }
-.install-note { margin-top: 23px !important; color: var(--faint) !important; font-size: 13px !important; }
+.install-note { margin-top: 23px !important; color: var(--faint) !important; font-size: 13px !important; line-height: 1.9; }
+.install-note a { color: var(--muted); text-decoration: underline; text-underline-offset: 4px; }
+.install-note a:hover { color: var(--text); }
 
 /* Legal / long-form reading pages (privacy, terms). A single narrow column instead of the
    marketing page's wide sections — nothing here needs a hero or a bento grid. */

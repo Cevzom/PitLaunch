@@ -56,12 +56,11 @@ TXT proves ownership. Railway issues the TLS certificate automatically.
 
 ## Content that goes stale
 
-Three things are pinned to the GitHub release and will need attention if that changes:
+Three things are tied to the Store listing or GitHub release and will need attention if that changes:
 
-- The download buttons point at
-  `releases/latest/download/PitLaunch-win-Setup.exe` and `...-win-Portable.zip`. These follow
-  `latest` automatically, so a new release needs no change here — but the **asset filenames must
-  stay the same**, or the buttons 404.
+- The primary download buttons point to the Microsoft Store listing (`9MSQRPQQKSL4`). The
+  standalone installer and portable ZIP still follow the latest GitHub release automatically,
+  so their **asset filenames must stay the same** or those secondary links will 404.
 - The version label fetches `releases/latest` from the GitHub API at runtime and degrades to the
   static text "PitLaunch 1.0" if that call fails. Nothing breaks offline.
 - The comparison wording is defined in `docs/comparison.json`. Run
