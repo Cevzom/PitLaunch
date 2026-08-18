@@ -74,8 +74,8 @@
 	let heroAutomatic = true;
 
 	const modes = {
-		desk: { name: "Desk", displays: "2 active", audio: "Headphones", windows: "6 restored" },
-		sim: { name: "Sim Racing", displays: "1 active", audio: "Rig speakers", windows: "3 restored" }
+		desk: { name: "Desk", displays: "2 active", audio: "Desk audio", windows: "6 restored" },
+		sim: { name: "Sim Racing", displays: "1 active", audio: "Rig audio", windows: "3 restored" }
 	};
 
 	const setHeroMode = (mode) => {
@@ -141,13 +141,13 @@
 				displayCount: "2",
 				displayLabel: "2 active",
 				monitors: "desk",
-				primaryName: "M27Q",
-				primaryResolution: "2560 × 1440",
-				displayOne: "G24F 2",
-				displayOneSpec: "1920 × 1080 165 Hz",
-				displayTwo: "M27Q (primary)",
-				displayTwoSpec: "2560 × 1440 170 Hz",
-				audio: "Headphones",
+				primaryName: "Primary display",
+				primaryResolution: "Primary",
+				displayOne: "Display 1",
+				displayOneSpec: "Enabled",
+				displayTwo: "Display 2 (primary)",
+				displayTwoSpec: "Enabled",
+				audio: "Setup playback device",
 				automation: "Return to Desk when the racing session closes.",
 				hotkey: "Ctrl + Alt + 1",
 				apps: "No applications configured for this setup."
@@ -158,13 +158,13 @@
 				displayCount: "1",
 				displayLabel: "1 active",
 				monitors: "sim",
-				primaryName: "Samsung G5",
-				primaryResolution: "3440 × 1440",
-				displayOne: "Samsung G5 (primary)",
-				displayOneSpec: "3440 × 1440 165 Hz",
+				primaryName: "Racing display",
+				primaryResolution: "Primary",
+				displayOne: "Racing display (primary)",
+				displayOneSpec: "Enabled",
 				displayTwo: "Desk displays",
 				displayTwoSpec: "Off while racing",
-				audio: "Speakers (SW5 Dongle)",
+				audio: "Setup playback device",
 				automation: "Move to the rig when Assetto Corsa Competizione starts.",
 				hotkey: "Ctrl + Alt + 2",
 				apps: "Launch CrewChief and SimHub with this setup."

@@ -99,7 +99,7 @@
 								</div>
 								<div class="demo-details">
 									<div><i class="detail-dot"></i><span>Displays</span><strong data-display-count>2 active</strong></div>
-									<div><i class="detail-dot"></i><span>Sound</span><strong data-audio-name>Headphones</strong></div>
+									<div><i class="detail-dot"></i><span>Sound</span><strong data-audio-name>Desk audio</strong></div>
 									<div><i class="detail-dot"></i><span>Windows</span><strong data-window-count>6 restored</strong></div>
 								</div>
 							</div>
@@ -351,7 +351,7 @@
 									<article class="preview-setup is-active" data-setup-card="desk">
 										<button class="setup-open" type="button" data-open-detail="desk" aria-label="Open Desk setup details">
 											<span class="setup-displays desk-displays" aria-hidden="true"><i>2</i><i>1</i><small>DISPLAY LAYOUT</small></span>
-											<span class="setup-copy"><span class="setup-title"><strong>Desk</strong><em>Dual display</em><b data-setup-state>Active</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Headphones (High Definition Audio)</small><small><i class="fact-dot fact-windows"></i> 6 windows restored</small><small><i class="fact-dot fact-display"></i> 2560 × 1440 at 170 Hz</small></span></span>
+											<span class="setup-copy"><span class="setup-title"><strong>Desk</strong><em>Dual display</em><b data-setup-state>Active</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Desk audio selected</small><small><i class="fact-dot fact-windows"></i> 6 windows restored</small><small><i class="fact-dot fact-display"></i> 2 displays configured</small></span></span>
 										</button>
 										<div class="setup-action"><small>CURRENT MODE</small><strong data-setup-state-label>Applied</strong><button class="setup-apply" type="button" data-demo-apply="desk">Reapply</button></div>
 									</article>
@@ -359,7 +359,7 @@
 									<article class="preview-setup" data-setup-card="sim">
 										<button class="setup-open" type="button" data-open-detail="sim" aria-label="Open Sim Racing setup details">
 											<span class="setup-displays sim-displays" aria-hidden="true"><i>1</i><small>DISPLAY LAYOUT</small></span>
-											<span class="setup-copy"><span class="setup-title"><strong>Sim Racing</strong><em>Single screen</em><b data-setup-state>Ready</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Speakers (SW5 Dongle)</small><small><i class="fact-dot fact-windows"></i> CrewChief + SimHub</small><small><i class="fact-dot fact-display"></i> 3440 × 1440 at 165 Hz</small></span></span>
+											<span class="setup-copy"><span class="setup-title"><strong>Sim Racing</strong><em>Single screen</em><b data-setup-state>Ready</b></span><span class="setup-facts"><small><i class="fact-dot fact-audio"></i> Rig audio selected</small><small><i class="fact-dot fact-windows"></i> CrewChief + SimHub</small><small><i class="fact-dot fact-display"></i> Racing display configured</small></span></span>
 										</button>
 										<div class="setup-action"><small>READY</small><strong data-setup-state-label>Available</strong><button class="setup-apply" type="button" data-demo-apply="sim">Switch</button></div>
 									</article>
@@ -388,7 +388,7 @@
 									</header>
 									<div class="preview-panel discord-panel">
 										<div class="panel-title"><div><h4>Discord</h4><p>Set the normal voice and audio behavior for this setup.</p></div><button class="preview-toggle is-on" type="button" aria-label="Launch Discord with setup" aria-pressed="true" data-demo-toggle><i></i></button></div>
-										<div class="integration-fields"><label><span>Discord output</span><select><option>Headphones</option></select></label><label><span>Discord microphone</span><select><option>Default microphone</option></select></label><label><span>Volume %</span><input value="85" readonly /></label></div>
+										<div class="integration-fields"><label><span>Discord output</span><select><option>Use setup output</option></select></label><label><span>Discord microphone</span><select><option>Use setup microphone</option></select></label><label><span>Volume %</span><input value="85" readonly /></label></div>
 										<small>PitLaunch follows Windows audio devices. It never needs your Discord account or token.</small>
 										<button class="preview-primary" type="button" data-demo-action="Discord choices saved in this visual preview.">Save Discord</button>
 									</div>
@@ -407,12 +407,12 @@
 									</div>
 									<div class="detail-panel is-on" data-detail-panel="hardware">
 										<div class="setup-identity"><div><h4>Setup identity</h4><p>Name and describe where this hardware is used.</p></div><label><span>Name</span><input value="Desk" readonly data-detail-identity-name /></label><label><span>Type</span><input value="Desk" readonly data-detail-identity-type /></label></div>
-										<div class="detail-section-head"><div><h4>Display layout</h4><p>Captured arrangement, resolution and primary display.</p></div><span data-detail-display-label>2 active</span></div>
-										<div class="detail-monitor-stage" data-detail-monitors="desk"><span class="detail-monitor secondary"><b>G24F 2</b><small>1920 × 1080</small></span><span class="detail-monitor primary"><b data-detail-primary-name>M27Q</b><small data-detail-primary-resolution>2560 × 1440</small></span></div>
+										<div class="detail-section-head"><div><h4>Display layout</h4><p>Saved arrangement and primary display.</p></div><span data-detail-display-label>2 active</span></div>
+										<div class="detail-monitor-stage" data-detail-monitors="desk"><span class="detail-monitor secondary"><b>Display 1</b><small>Enabled</small></span><span class="detail-monitor primary"><b data-detail-primary-name>Primary display</b><small data-detail-primary-resolution>Primary</small></span></div>
 										<ul class="detail-devices">
-											<li><i></i><strong data-detail-display-one>G24F 2</strong><span data-detail-display-one-spec>1920 × 1080 165 Hz</span></li>
-											<li><i></i><strong data-detail-display-two>M27Q (primary)</strong><span data-detail-display-two-spec>2560 × 1440 170 Hz</span></li>
-											<li class="detail-audio"><i></i><strong>Sound</strong><span data-detail-audio>Headphones</span></li>
+											<li><i></i><strong data-detail-display-one>Display 1</strong><span data-detail-display-one-spec>Enabled</span></li>
+											<li><i></i><strong data-detail-display-two>Display 2 (primary)</strong><span data-detail-display-two-spec>Enabled</span></li>
+											<li class="detail-audio"><i></i><strong>Sound</strong><span data-detail-audio>Setup playback device</span></li>
 										</ul>
 									</div>
 									<div class="detail-panel" data-detail-panel="automation" hidden>

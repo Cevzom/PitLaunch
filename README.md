@@ -9,9 +9,11 @@
 <img src="docs/images/setups.png" alt="PitLaunch setups screen" width="860" />
 
 <p>
-  <img src="docs/images/profile.png" alt="PitLaunch setup details" width="425" />
-  <img src="docs/images/settings.png" alt="PitLaunch settings" width="425" />
+  <img src="docs/images/games.png" alt="PitLaunch game presets" width="425" />
+  <img src="docs/images/integrations.png" alt="PitLaunch integrations" width="425" />
 </p>
+
+<img src="docs/images/settings.png" alt="PitLaunch settings" width="860" />
 
 </div>
 
