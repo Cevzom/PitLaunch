@@ -1231,11 +1231,10 @@ h1 > span {
 }
 
 .pricing-download-alt {
-	display: block;
-	margin-top: 13px;
+	display: table;
+	margin: 13px auto 0;
 	color: var(--muted);
 	font-size: 13px;
-	text-align: center;
 	text-decoration: underline;
 	text-decoration-color: rgba(255, 255, 255, .2);
 	text-underline-offset: 4px;

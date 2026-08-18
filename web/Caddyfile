@@ -12,9 +12,11 @@
 	root * /srv
 	encode zstd gzip
 
-	# Fingerprint-free filenames, so the HTML must always be revalidated while the
-	# assets beside it can be cached hard.
-	@static path *.css *.js *.png *.ico *.svg *.woff2
+	# CSS and JavaScript use stable filenames, so browsers must revalidate them after a deploy.
+	# Images and fonts can remain cached because they change far less often.
+	@mutable path *.css *.js
+	header @mutable Cache-Control "public, max-age=0, must-revalidate"
+	@static path *.png *.ico *.svg *.woff2
 	header @static Cache-Control "public, max-age=604800, must-revalidate"
 	header /index.html Cache-Control "public, max-age=0, must-revalidate"
 
